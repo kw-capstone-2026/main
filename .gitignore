@@ -64,6 +64,7 @@ Thumbs.db
 *.shx
 *.dbf
 *.prj
+data/
 
 # ML 모델 / 결과물
 *.pkl
