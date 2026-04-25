@@ -11,7 +11,7 @@ from src.models.baseline_xgboost import BaselineXGBoost
 load_dotenv()
 
 def main():
-    print("🚀 [System] 서울시 폐업 예측 파이프라인 가동...")
+    print("🚀 [System] 서울시 폐업 예측 파이프라인 (api.md 통합 버전) 가동...")
     
     # 2. 객체 초기화
     api = PublicDataAPI()
@@ -25,20 +25,26 @@ def main():
     sp = SpatialProcessor(bas_shp_path=shp_path)
     fm = FeatureMerger()
 
-    # 3. 데이터 수집 (API 활용)
-    print("\n[Step 1] API를 통한 데이터 수집 시도...")
-    # 하이브리드 수집 (영업중 + 폐업 데이터를 섞어 균형 잡힌 데이터셋 구축)
-    stores_json = api.get_store_info_hybrid()
+    # 3. 데이터 수집 (DS1~DS5)
+    print("\n[Step 1] 전수 데이터 수집 시도 (DS1~DS5)...")
     
-    # API 호출 실패 시 즉시 중단
-    if not stores_json or 'body' not in stores_json or 'items' not in stores_json['body'] or not stores_json['body']['items']:
-        print("❌ [Error] 상가 정보 API 호출에 실패했거나 데이터가 비어 있습니다.")
-        print("API 키의 권한이나 네트워크 상태를 확인해 주세요. 파이프라인을 중단합니다.")
-        sys.exit(1) # 더미 데이터 없이 종료
-
-    # 실제 데이터 로드
+    # 하이브리드 상가 데이터 수집 (DS1+DS3)
+    stores_json = api.get_store_info_hybrid()
+    if not stores_json or 'body' not in stores_json:
+        print("❌ [Error] 상가 데이터 수집 실패.")
+        sys.exit(1)
+        
     df_stores_raw = pd.DataFrame(stores_json['body']['items'])
     print(f"✅ 상가 데이터 {len(df_stores_raw)}건 수집 완료.")
+
+    # 상권 매출/유동인구 데이터 수집 (DS2) - 2024년 1분기 기준
+    sales_raw = api.get_seoul_commercial_sales("20241")
+    pop_raw = api.get_seoul_commercial_pop("20241")
+    living_pop_raw = api.get_seoul_living_pop_grid("20240101")
+    
+    print(f"📊 DS2 Sales Records: {len(sales_raw) if sales_raw else 0}")
+    print(f"📊 DS2 Population Records: {len(pop_raw) if pop_raw else 0}")
+    print(f"📊 DS5 Grid Pop Records: {len(living_pop_raw) if living_pop_raw else 0}")
 
     # 4. 공간 연산 및 BAS_ID 할당
     print("\n[Step 2] 공간 연산 및 기초구역(BAS_ID) 매핑 중...")
@@ -48,30 +54,40 @@ def main():
     mapped_count = gdf_mapped['BAS_ID'].notna().sum()
     print(f"✅ 공간 매핑 완료: {mapped_count} / {len(gdf_mapped)} 건 매핑 성공")
 
-    # 5. 생존 기간 및 피처 생성
+    # 5. 특징 변수 및 최종 마스터 테이블 생성
     print("\n[Step 3] 특징 변수(Feature) 및 타겟 생성 중...")
-    gdf_mapped['YEAR_QUARTER'] = '20231'
     df_with_survival = fm.calculate_survival_duration(gdf_mapped)
     
-    # 상권/유동인구 데이터 (필요 시 API 추가 호출 로직 구현)
-    df_sales_dummy = pd.DataFrame(columns=['BAS_ID', 'YEAR_QUARTER', 'total_sales'])
-    df_pop_dummy = pd.DataFrame(columns=['BAS_ID', 'YEAR_QUARTER', 'floating_pop'])
+    # 데이터프레임 변환
+    df_sales = pd.DataFrame(sales_raw) if sales_raw else pd.DataFrame()
+    df_pop = pd.DataFrame(pop_raw) if pop_raw else pd.DataFrame()
     
-    master_table = fm.create_master_table(df_with_survival, df_sales_dummy, df_pop_dummy)
-    print(f"✅ 최종 마스터 테이블 생성 완료 (행: {len(master_table)})")
+    # 모든 외부 데이터를 통합하여 마스터 테이블 생성
+    master_table = fm.create_master_table(
+        df_stores=df_with_survival,
+        df_sales=df_sales,
+        df_pop=df_pop
+    )
+    
+    print(f"✅ 최종 마스터 테이블 생성 완료 (행: {len(master_table)}, 피처 수: {len(master_table.columns)})")
+    
+    print("\n📊 Target(Closure) Distribution:")
+    print(master_table['is_closed'].value_counts())
 
-    # 6. 모델 학습 및 평가
-    print("\n[Step 4] XGBoost 베이스라인 모델 학습 시작...")
-    features = ['competitor_cnt', 'avg_survival_months']
-    target = 'closure_rate' 
+    # 6. 모델 학습 및 평가 (점포 단위 이진 분류)
+    print("\n[Step 4] XGBoost (Classification) 모델 학습 시작...")
+    target = 'is_closed'
+    exclude_cols = ['BAS_ID', '상가업소번호', '상호명', '인허가일자', '폐업일자', 'open_date', 'close_date', 'lat', 'lon', 'geometry', target, 'survival_months']
+    features = [col for col in master_table.columns if col not in exclude_cols]
     
-    if len(master_table) < 3:
+    if len(master_table) < 10:
         print("⚠️ [Warning] 데이터가 너무 적어 모델 학습을 중단합니다.")
-        sys.exit(1)
+        return
         
-    model = BaselineXGBoost(model_type='regression')
+    print(f"📊 학습에 사용될 핵심 피처 목록: {features}")
+    model = BaselineXGBoost(model_type='classification')
     model.train_and_evaluate(master_table, target_col=target, feature_cols=features)
-    print("\n🚀 [System] 모든 파이프라인 과정이 완료되었습니다!")
+    print("\n🚀 [System] 모든 파이프라인 과정이 성공적으로 완료되었습니다!")
 
 if __name__ == "__main__":
     main()

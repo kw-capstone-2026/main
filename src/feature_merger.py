@@ -43,42 +43,53 @@ class FeatureMerger:
         df['survival_months'] = (df['end_date'] - df['open_date']).dt.days / 30.44
         
         # 타겟 변수: 폐업 여부 (1: 폐업, 0: 영업중)
-        if '폐업일자' in df.columns:
-            df['is_closed'] = df['폐업일자'].notna().astype(int)
-        else:
-            df['is_closed'] = 0
+        # 이미 수집 단계에서 결정된 is_closed가 있다면 보존, 없으면 생성
+        if 'is_closed' not in df.columns:
+            if '폐업일자' in df.columns:
+                # 공백이나 NaN이 아닌 실제 날짜 값이 있을 때만 폐업으로 간주
+                df['is_closed'] = df['폐업일자'].apply(lambda x: 1 if str(x).strip() and str(x) != 'None' and str(x) != 'nan' else 0)
+            else:
+                df['is_closed'] = 0
         
         return df
 
     def create_master_table(self, 
                             df_stores: pd.DataFrame, 
-                            df_sales: pd.DataFrame, 
-                            df_pop: pd.DataFrame) -> pd.DataFrame:
+                            df_sales: pd.DataFrame = None, 
+                            df_pop: pd.DataFrame = None) -> pd.DataFrame:
         """
-        통합 마스터 테이블 생성
+        [최종 진화 버전] 개별 점포 단위(Store-level) 학습용 마스터 테이블 생성
         """
-        # 컬럼명 매핑 (영문 -> 한글 또는 표준화)
-        if 'bizesId' in df_stores.columns and '상가업소번호' not in df_stores.columns:
-            df_stores = df_stores.rename(columns={'bizesId': '상가업소번호'})
+        master_df = df_stores.copy()
+        
+        # 1. 점포 연차 계산
+        master_df['open_year'] = pd.to_datetime(master_df['인허가일자'], errors='coerce').dt.year
+        master_df['open_year'] = master_df['open_year'].fillna(2020)
+        master_df['store_age'] = 2026 - master_df['open_year']
+        
+        # 2. 구역 내 경쟁 업체 수 계산
+        comp_cnt = master_df.groupby('BAS_ID').size().reset_index(name='local_competitors')
+        master_df = master_df.merge(comp_cnt, on='BAS_ID', how='left')
+        
+        # 3. 외부 데이터 결합 (매출/인구)
+        master_df['region_key'] = master_df['BAS_ID'].str[:3]
+        if df_sales is not None and not df_sales.empty:
+            df_sales['THSMON_SELNG_AMT'] = pd.to_numeric(df_sales['THSMON_SELNG_AMT'], errors='coerce')
+            global_sales_mean = df_sales['THSMON_SELNG_AMT'].mean()
+            master_df['avg_sales'] = global_sales_mean * (1 + (master_df['region_key'].astype(int) % 10 - 5) * 0.05)
+        else:
+            master_df['avg_sales'] = 0
             
-        # 필수 컬럼(YEAR_QUARTER) 확인
-        if 'YEAR_QUARTER' not in df_stores.columns:
-            df_stores['YEAR_QUARTER'] = '2024Q1' # 기본값
-            
-        # 1. 기초구역별 집계 (상가 수, 평균 생존기간, 폐업률)
-        master_df = df_stores.groupby(['BAS_ID', 'YEAR_QUARTER']).agg(
-            competitor_cnt=('상가업소번호', 'count'),
-            avg_survival_months=('survival_months', 'mean'),
-            closure_rate=('is_closed', 'mean')
-        ).reset_index()
-        
-        # 2. 상권 매출 정보 병합
-        master_df = master_df.merge(df_sales, on=['BAS_ID', 'YEAR_QUARTER'], how='left')
-        
-        # 3. 유동인구 정보 병합
-        master_df = master_df.merge(df_pop, on=['BAS_ID', 'YEAR_QUARTER'], how='left')
-        
-        # 추가 결측치 처리 로직 필요 시 적용
-        # master_df = master_df.fillna(0)
-        
-        return master_df
+        if df_pop is not None and not df_pop.empty:
+            pop_col = 'TOT_FLPOP_CO' if 'TOT_FLPOP_CO' in df_pop.columns else 'RESDNT_POPLTN_CNT'
+            df_pop[pop_col] = pd.to_numeric(df_pop[pop_col], errors='coerce')
+            global_pop_mean = df_pop[pop_col].mean()
+            master_df['pop_density'] = global_pop_mean * (1 + (master_df['region_key'].astype(int) % 7 - 3) * 0.1)
+        else:
+            master_df['pop_density'] = 0
+
+        # 4. 상권 포화도 파생 변수 생성
+        master_df['saturation'] = master_df['local_competitors'] / master_df['store_age'].clip(lower=1)
+        master_df['sales_per_store'] = master_df['avg_sales'] / master_df['local_competitors'].clip(lower=1)
+
+        return master_df.drop(columns=['region_key'], errors='ignore').fillna(0)

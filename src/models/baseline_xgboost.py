@@ -38,30 +38,63 @@ class BaselineXGBoost:
 
     def train_and_evaluate(self, df: pd.DataFrame, target_col: str, feature_cols: list):
         """
-        모델을 학습하고 성능을 평가합니다.
+        모델을 학습하고 성능을 평가합니다. (클래스 불균형 자동 보정 및 점포 단위 분류 최적화)
         """
-        # 결측치를 0으로 채워 학습 가능한 상태로 만듦 (실제 분석 시에는 평균값 등으로 정교화 가능)
         df_clean = df.copy()
-        for col in feature_cols + [target_col]:
+        for col in feature_cols:
             if col in df_clean.columns:
                 df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce').fillna(0)
         
+        # 타겟 컬럼은 결측치를 0으로 강제 치환 후 정수로 변환
+        if target_col in df_clean.columns:
+            df_clean[target_col] = pd.to_numeric(df_clean[target_col], errors='coerce').fillna(0)
+            y = df_clean[target_col].astype(int)
+        else:
+            raise ValueError(f"Target column '{target_col}' missing.")
+            
         X = df_clean[feature_cols]
-        y = df_clean[target_col]
         
-        # Train / Test 분할 (8:2)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # 모델 규제 및 불균형 보정
+        if self.model_type == 'classification':
+            from sklearn.metrics import roc_auc_score
+            ratio = float(np.sum(y_train == 0)) / np.sum(y_train == 1) if np.sum(y_train == 1) > 0 else 1.0
+            self.model = XGBClassifier(
+                n_estimators=100,
+                max_depth=4,
+                learning_rate=0.05,
+                reg_lambda=5,
+                scale_pos_weight=ratio,
+                random_state=42,
+                use_label_encoder=False,
+                eval_metric='auc'
+            )
+        elif self.model_type == 'regression':
+            self.model = XGBRegressor(
+                n_estimators=50,
+                max_depth=3,
+                learning_rate=0.05,
+                reg_lambda=10,
+                random_state=42
+            )
         
         print(f"Training XGBoost ({self.model_type}) on {len(X_train)} samples...")
         self.model.fit(X_train, y_train)
         
         preds = self.model.predict(X_test)
         
+        print("\n--- Prediction Samples (Actual vs Predicted) ---")
+        comparison = pd.DataFrame({'Actual': y_test, 'Predicted': preds}).head(10)
+        print(comparison)
+        
         print("\n--- Evaluation Results ---")
         if self.model_type == 'classification':
             acc = accuracy_score(y_test, preds)
+            probs = self.model.predict_proba(X_test)[:, 1]
+            auc = roc_auc_score(y_test, probs)
             print(f"Accuracy: {acc:.4f}")
-            print(classification_report(y_test, preds))
+            print(f"AUC Score: {auc:.4f}")
         else:
             rmse = np.sqrt(mean_squared_error(y_test, preds))
             print(f"RMSE: {rmse:.4f}")
