@@ -9,7 +9,7 @@ from src.data_acquisition import PublicDataAPI
 load_dotenv()
 
 def prepare_data():
-    print("📡 Downloading raw data for iterative experiments...")
+    print("Downloading raw data for iterative experiments...")
     api = PublicDataAPI()
     
     stores_json = api.get_store_info_hybrid()
@@ -27,7 +27,7 @@ def prepare_data():
     with open('scratch/data_dump.pkl', 'wb') as f:
         pickle.dump(data, f)
         
-    print(f"✅ Data dumped to scratch/data_dump.pkl")
+    print(f"Data dumped to scratch/data_dump.pkl")
     print(f"   Stores: {len(data['stores'])}")
     print(f"   Sales: {len(data['sales'])}")
     print(f"   Population: {len(data['pop'])}")

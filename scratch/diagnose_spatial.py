@@ -29,11 +29,11 @@ print(f"Sample Point (WGS84) -> EPSG:5179: X={p_w_x:.2f}, Y={p_w_y:.2f}")
 # 범위 비교
 min_x, min_y, max_x, max_y = bas_gdf.total_bounds
 if min_x <= p_x <= max_x and min_y <= p_y <= max_y:
-    print("\n✅ Success: Closed Point is INSIDE SHP bounds!")
+    print("\nSuccess: Closed Point is INSIDE SHP bounds!")
 else:
     print("\n❌ Error: Closed Point is OUTSIDE SHP bounds.")
 
 if min_x <= p_w_x <= max_x and min_y <= p_w_y <= max_y:
-    print("✅ Success: Open Point (WGS84) is INSIDE SHP bounds!")
+    print("Success: Open Point (WGS84) is INSIDE SHP bounds!")
 else:
     print("❌ Error: Open Point (WGS84) is OUTSIDE SHP bounds.")

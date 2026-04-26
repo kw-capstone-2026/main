@@ -16,7 +16,7 @@ def load_data():
         return pickle.load(f)
 
 def run_iterations():
-    print("🚀 Starting 10-Step Model Iteration Pipeline...")
+    print("Starting 10-Step Model Iteration Pipeline...")
     data = load_data()
     df_stores = pd.DataFrame(data['stores'])
     df_sales = pd.DataFrame(data['sales'])
@@ -128,7 +128,7 @@ def run_iterations():
     for name, imp in zip(features_8, model9.feature_importances_):
         print(f"     - {name}: {imp:.4f}")
         
-    print("\n✅ 10 Iterations Completed. External Features + Balanced Weighting applied.")
+    print("\n10 Iterations Completed. External Features + Balanced Weighting applied.")
 
 if __name__ == "__main__":
     run_iterations()

@@ -27,4 +27,4 @@ if __name__ == "__main__":
     API_KEY = "YOUR_API_KEY_HERE"
     df = fetch_subway_stations(API_KEY)
     df.to_csv("../../data/raw/subway_stations.csv", index=False, encoding="utf-8-sig")
-    print(f"✅ 수집 완료: {len(df)}개 역사")
+    print(f"수집 완료: {len(df)}개 역사")

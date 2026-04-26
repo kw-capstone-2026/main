@@ -60,7 +60,8 @@ class FeatureMerger:
         """
         [최종 진화 버전] 개별 점포 단위(Store-level) 학습용 마스터 테이블 생성
         """
-        master_df = df_stores.copy()
+        # 기초구역 매핑에 실패한 데이터(NaN)는 분석에서 제외
+        master_df = df_stores.dropna(subset=['BAS_ID']).copy()
         
         # 1. 점포 연차 계산
         master_df['open_year'] = pd.to_datetime(master_df['인허가일자'], errors='coerce').dt.year

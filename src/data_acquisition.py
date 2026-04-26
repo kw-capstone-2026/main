@@ -60,13 +60,13 @@ class PublicDataAPI:
         seoul_key = os.environ.get('SEOUL_DATA_KEY')
         
         # 1. 서울시 전수 데이터 수집 (DS3 - LOCALDATA_072405)
-        print("📡 Starting FULL-SCALE collection from Seoul Data Plaza (DS3)...")
+        print("[Info] Starting FULL-SCALE collection from Seoul Data Plaza (DS3)...")
         try:
             # 먼저 전체 개수 파악
             init_url = f"http://openapi.seoul.go.kr:8088/{seoul_key}/json/LOCALDATA_072405/1/1/"
             init_res = requests.get(init_url, timeout=10).json()
             total_count = int(init_res['LOCALDATA_072405']['list_total_count'])
-            print(f"📊 Total Seoul Store Records Found: {total_count}")
+            print(f"[Data] Total Seoul Store Records Found: {total_count}")
             
             # 1,000건씩 끊어서 전체 수집 (과거 데이터 20,000건 + 최신 데이터 20,000건)
             # 과거 데이터 (주로 폐업)
@@ -97,7 +97,7 @@ class PublicDataAPI:
 
             # 최신 데이터 (주로 영업 중)
             latest_start = max(1, total_count - 20000)
-            print(f"📡 Fetching LATEST records starting from {latest_start}...")
+            print(f"[Info] Fetching LATEST records starting from {latest_start}...")
             for start in range(latest_start, latest_start + 5000, 1000): # 우선 5000건만 샘플링
                 end = start + 999
                 url = f"http://openapi.seoul.go.kr:8088/{seoul_key}/json/LOCALDATA_072405/{start}/{end}/"
@@ -106,7 +106,7 @@ class PublicDataAPI:
                     if 'LOCALDATA_072405' in res and 'row' in res['LOCALDATA_072405']:
                         rows = res['LOCALDATA_072405']['row']
                         if start == latest_start:
-                            print(f"🔍 Status Sample from Latest: {[r.get('TRDSTATENM') for r in rows[:5]]}")
+                            print(f"[Data] Status Sample from Latest: {[r.get('TRDSTATENM') for r in rows[:5]]}")
                         for row in rows:
                             status = str(row.get('TRDSTATENM') or row.get('DTLSTATENM') or '')
                             x_coord, y_coord = str(row.get('X', '')), str(row.get('Y', ''))
@@ -126,12 +126,12 @@ class PublicDataAPI:
                                 })
                 except: continue
             
-            print(f"\n✅ DS3 Balanced Collection Finished: {len(refined_items)} records.")
+            print(f"\n[Success] DS3 Balanced Collection Finished: {len(refined_items)} records.")
         except Exception as e:
-            print(f"⚠️ DS3 Full Collection Error: {e}")
+            print(f"[Error] DS3 Full Collection Error: {e}")
 
         # 2. 영업 중 데이터 추가 보강 (DS1 - 공공데이터포털)
-        print("📡 Bolstering with latest data from Public Data Portal (DS1)...")
+        print("[Info] Bolstering with latest data from Public Data Portal (DS1)...")
         for page in range(1, 11): # 10페이지까지 수집 (총 10,000건)
             url_ds1 = "http://apis.data.go.kr/B553077/api/open/sdsc2/storeListInUpjong"
             params_ds1 = {
@@ -151,7 +151,7 @@ class PublicDataAPI:
             
         open_cnt = sum(1 for x in refined_items if x['is_closed'] == 0)
         closed_cnt = sum(1 for x in refined_items if x['is_closed'] == 1)
-        print(f"🎯 Final Hybrid Dataset: Total({len(refined_items)}), Open({open_cnt}), Closed({closed_cnt})")
+        print(f"[Data] Final Hybrid Dataset: Total({len(refined_items)}), Open({open_cnt}), Closed({closed_cnt})")
         
         return {'body': {'items': refined_items}}
 
