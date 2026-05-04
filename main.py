@@ -84,6 +84,8 @@ def main():
         print("[Warning] 데이터가 너무 적어 모델 학습을 중단합니다.")
         return
         
+    # main.py의 Step 3 마스터 테이블 생성 직후
+    print(f"현재 사용 가능한 데이터 항목들: {master_table.columns.tolist()}")    
     print(f"[Data] 학습에 사용될 핵심 피처 목록: {features}")
     model = BaselineXGBoost(model_type='classification')
     model.train_and_evaluate(master_table, target_col=target, feature_cols=features)

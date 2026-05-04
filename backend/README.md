@@ -10,7 +10,7 @@
 | Language | Java |
 | Spring Boot | 3.x (최신 안정 버전) |
 | Group | com.capstone |
-| Artifact | survival-api |
+| Artifact |  |survival-api
 | Dependencies | Spring Web, Spring Data JPA, PostgreSQL Driver |
 
 생성된 프로젝트를 이 `backend/` 폴더 안에 풀어주세요.
