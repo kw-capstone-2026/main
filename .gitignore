@@ -1,0 +1,82 @@
+# ══════════════════════════════════
+# Python
+# ══════════════════════════════════
+.env
+.venv
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Anaconda / Conda
+.conda/
+conda-meta/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ══════════════════════════════════
+# Java / Spring Boot
+# ══════════════════════════════════
+backend/build/
+backend/.gradle/
+backend/bin/
+backend/out/
+*.jar
+*.war
+*.class
+
+# ══════════════════════════════════
+# React / Node.js
+# ══════════════════════════════════
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.production.local
+
+# ══════════════════════════════════
+# OS / IDE
+# ══════════════════════════════════
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# ══════════════════════════════════
+# 데이터 파일 (대용량 → Git 제외, 별도 공유)
+# ══════════════════════════════════
+*.csv
+*.tsv
+*.xlsx
+*.parquet
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+*.geojson
+*.shp
+*.shx
+*.dbf
+*.prj
+data/
+
+# ML 모델 / 결과물
+*.pkl
+*.model
+*.h5
+results/
+
+# Database
+docker-compose.override.yml
+pgdata/
+
+# ══════════════════════════════════
+# Agent Tools
+# ══════════════════════════════════
+gemini.md/

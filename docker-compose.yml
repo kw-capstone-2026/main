@@ -1,0 +1,57 @@
+# ──────────────────────────────────────────────────────────────
+# docker-compose.yml
+# ──────────────────────────────────────────────────────────────
+#
+# ❓ 이 파일이 하는 일:
+#   PostgreSQL + PostGIS 데이터베이스를 내 컴퓨터에서 실행합니다.
+#   MySQL Workbench에서 직접 DB 설치하는 것과 같은 역할이지만,
+#   이 파일 하나로 팀원 전원이 동일한 환경을 자동으로 구성합니다.
+#
+# ✅ 사용법 (이것만 하면 됨):
+#   시작: docker compose up -d
+#   종료: docker compose down
+#   완전 초기화(데이터 삭제): docker compose down -v
+#
+# 📌 DB 접속 정보 (Spring Boot application.yml과 반드시 일치해야 함):
+#   Host:     localhost
+#   Port:     5432
+#   DB 이름:  survival_db
+#   아이디:   capstone_user
+#   비밀번호: capstone1234
+# ──────────────────────────────────────────────────────────────
+
+services:
+  db:
+    # PostgreSQL 15 + PostGIS 3.4 이미지 (자동 다운로드됨, 직접 설치 불필요)
+    image: postgis/postgis:15-3.4
+
+    # 컨테이너 이름 (docker exec 명령어에서 사용)
+    container_name: capstone-db
+
+    # DB 환경변수 설정
+    environment:
+      POSTGRES_DB: survival_db      # DB 이름
+      POSTGRES_USER: capstone_user  # 접속 아이디
+      POSTGRES_PASSWORD: capstone1234 # 접속 비밀번호
+
+    # 포트: 내 컴퓨터 5432 → 컨테이너 내부 5432
+    # (Spring Boot, Python 코드 전부 localhost:5432로 접속)
+    ports:
+      - "5432:5432"
+
+    # 데이터 저장소
+    # docker compose down 해도 데이터 유지됨
+    # docker compose down -v 하면 데이터 삭제됨 (초기화)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 아래 SQL 파일들은 DB 최초 실행 시 순서대로 자동 실행됩니다
+      # (MySQL에서 CREATE TABLE 직접 치던 것과 동일한 역할)
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+
+    # 컨테이너가 예기치 않게 종료되면 자동 재시작
+    restart: unless-stopped
+
+# 데이터 영구 보관용 볼륨
+volumes:
+  pgdata:
