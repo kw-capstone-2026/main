@@ -115,3 +115,58 @@ local_competitors    0.329730
         store_age    0.000000
          end_date    0.000000
 ==================================================
+
+#03: 대중교통(지하철+버스) 통합 지리 정보 강화
+
+🚀 [Log #03] 지하철+버스+상권 통합 파이프라인 가동
+[Info] DS3 (Seoul Data) 전수 수집 시작...
+[Info] 상권 매출 및 점포 데이터 병합 중...
+🚀 [Log #03] Training Tuned XGBoost on 15126 samples...
+C:\Users\Administrator\anaconda3\envs\capstone\lib\site-packages\xgboost\callback.py:385: UserWarning: [18:55:18] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:782: 
+Parameters: { "use_label_encoder" } are not used.
+
+  self.starting_round = model.num_boosted_rounds()
+
+--- Prediction Samples (Actual vs Predicted) ---
+       Actual  Predicted
+10680       1          0
+10692       0          0
+18365       0          0
+3100        0          0
+7409        0          1
+14956       0          0
+2295        1          0
+3583        1          1
+11353       0          0
+14375       1          1
+
+==================================================
+🏆 [실험 로그 #03 결과 리포트]
+✅ Accuracy : 0.7290
+🔥 AUC Score: 0.8075
+==================================================
+
+[상세 리포트 (Detail Report)]
+              precision    recall  f1-score   support
+
+           0       0.58      0.71      0.64      1277
+           1       0.83      0.74      0.78      2505
+
+    accuracy                           0.73      3782
+   macro avg       0.71      0.72      0.71      3782
+weighted avg       0.75      0.73      0.73      3782
+
+
+📊 [변수 중요도 (Feature Importance) TOP 10]
+---------------------------------------------
+ 1. open_year            : 0.3031
+ 2. total_transport_score : 0.2750
+ 3. geo_access_score     : 0.1074
+ 4. bus_access_score     : 0.1007
+ 5. bus_dist_m           : 0.0987
+ 6. subway_dist_m        : 0.0736
+ 7. pop_density          : 0.0414
+ 8. saturation           : 0.0000
+ 9. avg_sales            : 0.0000
+10. local_competitors    : 0.0000
+---------------------------------------------
