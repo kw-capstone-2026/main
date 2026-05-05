@@ -170,3 +170,46 @@ weighted avg       0.75      0.73      0.73      3782
  9. avg_sales            : 0.0000
 10. local_competitors    : 0.0000
 ---------------------------------------------
+
+#04: 상권 매출(D1~D5) 복원 및 대형 유통 시설(Large Store) 영향도 분석
+
+🚀 [Step 1] 전수 데이터 수집 중...
+🚀 [Step 2] 피처 생성 및 병합 중...
+C:\Users\Administrator\Desktop\민재폴더\광운대학교\26년 1학기\캡스톤\project\code\main\src\feature_merger.py:58: FutureWarning: Downcasting behavior in Series and DataFrame methods 'where', 'mask', and 'clip' is deprecated. In a future version this will not infer object dtypes or cast all-round floats to integers. Instead call result.infer_objects(copy=False) for object inference, or cast round floats explicitly. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  return master_df.fillna(0)
+🚀 [Step 3] 공간 거리 연산 수행 중 (KD-Tree)...
+🚀 [Step 4] 모델 학습 및 평가...
+
+🔥 [실험 #04] XGBoost 학습 시작 (피처 수: 10)
+
+==================================================
+🏆 [실험 로그 #04 최종 결과]
+--------------------------------------------------
+✅ Accuracy : 0.7481
+🔥 AUC Score: 0.8110
+==================================================
+
+[상세 분류 지표 (Classification Report)]
+              precision    recall  f1-score   support
+
+           0       0.59      0.71      0.65      1622
+           1       0.84      0.77      0.80      3373
+
+    accuracy                           0.75      4995
+   macro avg       0.72      0.74      0.73      4995
+weighted avg       0.76      0.75      0.75      4995
+
+
+📊 [변수 중요도 순위 (Feature Importance TOP 10)]
+--------------------------------------------------
+ 1. store_age              : 0.3025
+ 2. open_year              : 0.2631
+ 3. local_competitors      : 0.1007
+ 4. sales_per_store        : 0.0828
+ 5. avg_sales              : 0.0663
+ 6. large_impact           : 0.0597
+ 7. subway_dist_m          : 0.0449
+ 8. bus_dist_m             : 0.0426
+ 9. saturation             : 0.0375
+10. survival_months        : 0.0000
+--------------------------------------------------

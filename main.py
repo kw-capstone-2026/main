@@ -1,64 +1,68 @@
+import os
 import pandas as pd
 import numpy as np
-import geopandas as gpd
 from scipy.spatial import cKDTree
-from src.data_acquisition import PublicDataAPI
+from dotenv import load_dotenv
+from src.data_acquisition import DataAcquisition
+from src.feature_merger import FeatureMerger
 from src.models.baseline_xgboost import BaselineXGBoost
 
+load_dotenv()
+
 def main():
-    api = PublicDataAPI()
-    print("🚀 [Log #03] 지하철+버스+상권 통합 파이프라인 가동")
-
-    # 1. 데이터 수집
-    stores_raw = api.get_store_info_hybrid()
-    df_stores = pd.DataFrame(stores_raw['body']['items'])
-    df_subway = pd.DataFrame(api.get_seoul_subway_master())
-    df_bus = pd.DataFrame(api.get_seoul_bus_stops())
+    api = DataAcquisition()
+    merger = FeatureMerger()
     
-    # 2. 지리 거리 연산 (Subway & Bus)
-    df_stores['lat'] = pd.to_numeric(df_stores['lat'], errors='coerce')
-    df_stores['lon'] = pd.to_numeric(df_stores['lon'], errors='coerce')
-    df_clean = df_stores.dropna(subset=['lat', 'lon']).copy()
+    print("🚀 [Step 1] 전수 데이터 수집 중...")
+    # 1. 데이터 수집
+    raw_data = api.get_store_info_hybrid()
+    df_raw = pd.DataFrame(raw_data['body']['items'])
+    df_sales = api.get_seoul_commercial_sales("20234")
+    df_sub = api.get_seoul_subway()
+    df_bus = api.get_seoul_bus_stops()
+    df_large = api.get_seoul_large_stores()
 
-    # 지하철 거리
-    sub_tree = cKDTree(df_subway[['LAT', 'LOT']].apply(pd.to_numeric).values)
-    s_dists, _ = sub_tree.query(df_clean[['lat', 'lon']].values)
-    df_clean['subway_dist_m'] = s_dists * 111320
-    df_clean['geo_access_score'] = 1 / (df_clean['subway_dist_m'] + 1)
+    print("🚀 [Step 2] 피처 생성 및 병합 중...")
+    df_prep = merger.calculate_survival_duration(df_raw)
+    df_master = merger.create_master_table(df_prep, df_sales=df_sales)
 
-    # 버스 거리
-    bus_tree = cKDTree(df_bus[['YCRD', 'XCRD']].apply(pd.to_numeric).values)
-    b_dists, _ = bus_tree.query(df_clean[['lat', 'lon']].values)
-    df_clean['bus_dist_m'] = b_dists * 111320
-    df_clean['bus_access_score'] = 1 / (df_clean['bus_dist_m'] + 1)
-    df_clean['total_transport_score'] = (df_clean['geo_access_score'] + df_clean['bus_access_score']) / 2
+    # 지리 연산을 위한 좌표 필터링
+    df_geo = df_master.dropna(subset=['lat', 'lon']).copy()
+    coords = df_geo[['lat', 'lon']].values
 
-    # 3. 실제 상권 데이터(DS2) 병합 로직 (KeyError 해결 핵심)
-    print("[Info] 상권 매출 및 점포 데이터 병합 중...")
-    sales_data = pd.DataFrame(api.get_seoul_commercial_sales("20234")) # 23년 4분기 예시
-    store_stats = pd.DataFrame(api.get_seoul_commercial_stores("20234"))
+    print("🚀 [Step 3] 공간 거리 연산 수행 중 (KD-Tree)...")
+    # 3-1. 지하철 거리
+    sub_tree = cKDTree(df_sub[['LAT', 'LOT']].apply(pd.to_numeric, errors='coerce').dropna().values)
+    d_sub, _ = sub_tree.query(coords)
+    df_geo['subway_dist_m'] = d_sub * 111320
 
-    # 기초구역 매핑 (SHP) - 이 부분은 민재님 PC의 SHP 로드 로직 유지
-    gdf_bas = gpd.read_file("data/(도로명주소)기초구역_서울/TL_KODIS_BAS_11_202604.shp")
-    gdf_stores = gpd.GeoDataFrame(df_clean, geometry=gpd.points_from_xy(df_clean.lon, df_clean.lat), crs="EPSG:4326").to_crs(gdf_bas.crs)
-    df_mapped = gpd.sjoin(gdf_stores, gdf_bas, how="left", predicate="within")
+    # 3-2. 버스 거리
+    bus_tree = cKDTree(df_bus[['YCRD', 'XCRD']].apply(pd.to_numeric, errors='coerce').dropna().values)
+    d_bus, _ = bus_tree.query(coords)
+    df_geo['bus_dist_m'] = d_bus * 111320
 
-    # [KeyError 방지] 상권 데이터에서 필요한 컬럼 실제 생성
-    # 실제 상권 데이터가 없는 구역을 위해 평균값/기본값으로 채움
-    df_mapped['avg_sales'] = pd.to_numeric(df_mapped.get('TH_SELNG_AMT', 0)) # 예시 컬럼명
-    df_mapped['local_competitors'] = pd.to_numeric(df_mapped.get('STOR_CO', 5)) 
-    df_mapped['pop_density'] = np.random.randint(100, 500, len(df_mapped)) # 생활인구 API 연동 전 임시
-    df_mapped['saturation'] = df_mapped['local_competitors'] / 10
-    df_mapped['open_year'] = pd.to_datetime(df_mapped['인허가일자']).dt.year.fillna(2020)
+    # 3-3. 대규모 점포 거리 및 영향도 (에러 발생 지점 수정)
+    # X, Y 컬럼을 숫자로 변환하되, 공백 같은 쓰레기 값은 NaN으로 만듭니다.
+    df_large['X'] = pd.to_numeric(df_large['X'], errors='coerce')
+    df_large['Y'] = pd.to_numeric(df_large['Y'], errors='coerce')
+    
+    # 좌표가 제대로 변환된 데이터만 남깁니다.
+    df_large_clean = df_large.dropna(subset=['X', 'Y']).copy()
+    
+    large_tree = cKDTree(df_large_clean[['Y', 'X']].values) # 이미 숫자이므로 apply 필요 없음
+    d_large, _ = large_tree.query(coords)
+    df_geo['large_store_dist_m'] = d_large * 111320
+    df_geo['large_impact'] = 1 / (df_geo['large_store_dist_m'] + 1)
 
-    # 4. 모델 학습
+    print("🚀 [Step 4] 모델 학습 및 평가...")
     features = [
-        'open_year', 'local_competitors', 'avg_sales', 'pop_density', 'saturation',
-        'subway_dist_m', 'geo_access_score', 'bus_dist_m', 'bus_access_score', 'total_transport_score'
+        'open_year', 'store_age', 'survival_months', 'local_competitors', 
+        'avg_sales', 'saturation', 'sales_per_store',
+        'subway_dist_m', 'bus_dist_m', 'large_impact'
     ]
     
-    model = BaselineXGBoost(model_type='classification')
-    model.train_and_evaluate(df_mapped, target_col='is_closed', feature_cols=features)
+    model = BaselineXGBoost()
+    model.train_and_evaluate(df_geo, 'is_closed', features)
 
 if __name__ == "__main__":
     main()
