@@ -1,13 +1,5 @@
 """
 feature_engineering/spatial_features.py
-D5: 지리적/물리적 제약 (Geographic & Physical Constraints) 피처 생성 모듈
-
-담당: 백지윤
-
-생성 피처:
-    - elevation      : 기초구역(BAS_ID) 중심점의 고도(m) — 브이월드 LT_C_LHFPC
-    - slope          : 경사도 proxy (반경 300m 이내 이웃 블록 고도 표준편차)
-    - dist_crosswalk : 가장 가까운 횡단보도까지의 거리(m)
 """
 
 import os
@@ -78,9 +70,16 @@ def compute_count_within_radius(
     result[col_name] = counts
     return result
 
+"""
+지리적/물리적 제약 (Geographic & Physical Constraints) 피처 생성 모듈
 
+생성 피처:
+    - elevation      : 기초구역(BAS_ID) 중심점의 고도(m) — 브이월드 LT_C_LHFPC
+    - slope          : 경사도 proxy (반경 300m 이내 이웃 블록 고도 표준편차)
+    - dist_crosswalk : 가장 가까운 횡단보도까지의 거리(m)
+"""
 # ───────────────────────────────────────────────────────────
-# D5 피처 1·2: 고도(elevation) + 경사도(slope)
+# 피처 1·2: 고도(elevation) + 경사도(slope)
 # ───────────────────────────────────────────────────────────
 
 def _load_elevation_cache(cache_path: str) -> dict:
@@ -230,6 +229,93 @@ def add_crosswalk_distance(
 
 
 # ───────────────────────────────────────────────────────────
+# 피처 4·5: 보행 단절 — 지상 철도(dist_railway), 하천(dist_river)
+# ───────────────────────────────────────────────────────────
+
+def _load_barrier_gdf(
+    cache_path: str,
+    fetch_fn,
+    label: str
+) -> Optional[gpd.GeoDataFrame]:
+    """장벽 GeoDataFrame을 캐시에서 로드하거나 fetch_fn으로 수집합니다."""
+    if os.path.exists(cache_path):
+        with open(cache_path, 'rb') as f:
+            gdf = pickle.load(f)
+        print(f"[Cache] {label} {len(gdf)}건 캐시 로드.")
+        return gdf
+
+    gdf = fetch_fn()
+    if gdf is None or len(gdf) == 0:
+        print(f"[Warning] {label} 데이터 수집 실패.")
+        return None
+
+    with open(cache_path, 'wb') as f:
+        pickle.dump(gdf, f)
+    print(f"[OSM] {label} {len(gdf)}건 캐시 저장.")
+    return gdf
+
+
+def compute_nearest_line_distance(
+    stores_gdf: gpd.GeoDataFrame,
+    lines_gdf: gpd.GeoDataFrame,
+    col_name: str
+) -> gpd.GeoDataFrame:
+    """
+    각 점포로부터 가장 가까운 선형 피처(철도/하천)까지의 거리(m)를 계산합니다.
+    선형 피처를 unary_union으로 합친 뒤 shapely distance로 계산합니다.
+    """
+    stores_proj = stores_gdf.to_crs(epsg=5179)
+    lines_proj  = lines_gdf.to_crs(epsg=5179)
+
+    merged_lines = lines_proj.geometry.union_all()
+
+    result = stores_gdf.copy()
+    result[col_name] = stores_proj.geometry.apply(
+        lambda pt: pt.distance(merged_lines)
+    ).values
+    return result
+
+
+def add_barrier_features(
+    stores_gdf: gpd.GeoDataFrame,
+    api: "PublicDataAPI",
+    cache_dir: str = 'scratch'
+) -> gpd.GeoDataFrame:
+    """
+    보행 단절 요인 거리 피처를 추가합니다.
+        dist_railway : 가장 가까운 지상 철도까지 거리(m)
+        dist_river   : 가장 가까운 하천까지 거리(m)
+    """
+    result = stores_gdf.copy()
+
+    railway_gdf = _load_barrier_gdf(
+        cache_path=os.path.join(cache_dir, 'railway_cache.pkl'),
+        fetch_fn=api.get_railway_ground_seoul,
+        label='지상 철도'
+    )
+    if railway_gdf is not None:
+        result = compute_nearest_line_distance(result, railway_gdf, 'dist_railway')
+        print(f"[GeoFeature] dist_railway 유효: {result['dist_railway'].notna().sum()}/{len(result)}건  "
+              f"mean={result['dist_railway'].mean():.0f}m")
+    else:
+        result['dist_railway'] = np.nan
+
+    river_gdf = _load_barrier_gdf(
+        cache_path=os.path.join(cache_dir, 'river_cache.pkl'),
+        fetch_fn=api.get_river_seoul,
+        label='하천'
+    )
+    if river_gdf is not None:
+        result = compute_nearest_line_distance(result, river_gdf, 'dist_river')
+        print(f"[GeoFeature] dist_river 유효: {result['dist_river'].notna().sum()}/{len(result)}건  "
+              f"mean={result['dist_river'].mean():.0f}m")
+    else:
+        result['dist_river'] = np.nan
+
+    return result
+
+
+# ───────────────────────────────────────────────────────────
 # 통합 빌더
 # ───────────────────────────────────────────────────────────
 
@@ -242,9 +328,11 @@ def build_geo_constraint_features(
     D5 지리적/물리적 제약 피처를 모두 빌드하여 반환합니다.
 
     추가되는 컬럼:
-        elevation    (float): 고도(m)
-        slope        (float): 경사도 proxy
+        elevation      (float): 고도(m)
+        slope          (float): 경사도 proxy
         dist_crosswalk (float): 횡단보도까지 거리(m)
+        dist_railway   (float): 지상 철도까지 거리(m)
+        dist_river     (float): 하천까지 거리(m)
     """
     print("\n[D5] 지리적/물리적 제약 피처 빌드 시작...")
     os.makedirs(cache_dir, exist_ok=True)
@@ -264,5 +352,7 @@ def build_geo_constraint_features(
     else:
         result['dist_crosswalk'] = np.nan
 
-    print(f"[D5] 완료 — 추가된 피처: elevation, slope, dist_crosswalk")
+    result = add_barrier_features(result, api, cache_dir=cache_dir)
+
+    print(f"[D5] 완료 — 추가된 피처: elevation, slope, dist_crosswalk, dist_railway, dist_river")
     return result
