@@ -29,6 +29,10 @@ dependencies:
   # pip으로만 설치 가능한 라이브러리
   - pip
   - pip:
+    # 공간 연산 (KDTree 등)
+    - scipy==1.13.1
+    # NASA SRTM 수치표고모델 (키 불필요)
+    - srtm.py==0.3.4
     # 크롤링
     - selenium==4.21.0
     - beautifulsoup4==4.12.3
