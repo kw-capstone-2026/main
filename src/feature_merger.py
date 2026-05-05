@@ -99,13 +99,13 @@ class FeatureMerger:
         master_df['sales_per_store'] = master_df['avg_sales'] / master_df['local_competitors'].clip(lower=1)
 
         # 5. 지리적/물리적 제약 피처 병합
-        D5_COLS = ['elevation', 'slope', 'dist_crosswalk', 'dist_railway', 'dist_river']
+        GEO_COLS = ['elevation', 'slope', 'dist_crosswalk', 'dist_railway', 'dist_river']
         if df_geo is not None and not df_geo.empty:
-            geo_cols = ['BAS_ID'] + [c for c in D5_COLS if c in df_geo.columns]
+            geo_cols = ['BAS_ID'] + [c for c in GEO_COLS if c in df_geo.columns]
             geo_bas = df_geo[geo_cols].drop_duplicates(subset='BAS_ID')
             master_df = master_df.merge(geo_bas, on='BAS_ID', how='left')
         else:
-            for col in D5_COLS:
+            for col in GEO_COLS:
                 master_df[col] = np.nan
 
         return master_df.drop(columns=['region_key'], errors='ignore').fillna(0)

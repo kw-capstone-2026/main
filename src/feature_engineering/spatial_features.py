@@ -190,7 +190,7 @@ def add_elevation_slope_features(
 
 
 # ───────────────────────────────────────────────────────────
-# D5 피처 3: 횡단보도 거리(dist_crosswalk)
+# 지리적 제약 피처 3: 횡단보도 거리(dist_crosswalk)
 # ───────────────────────────────────────────────────────────
 
 def _load_crosswalk_gdf(
@@ -334,7 +334,7 @@ def build_geo_constraint_features(
         dist_railway   (float): 지상 철도까지 거리(m)
         dist_river     (float): 하천까지 거리(m)
     """
-    print("\n[D5] 지리적/물리적 제약 피처 빌드 시작...")
+    print("\n[GeoConstraints] 지리적/물리적 제약 피처 빌드 시작...")
     os.makedirs(cache_dir, exist_ok=True)
 
     result = add_elevation_slope_features(
@@ -354,5 +354,5 @@ def build_geo_constraint_features(
 
     result = add_barrier_features(result, api, cache_dir=cache_dir)
 
-    print(f"[D5] 완료 — 추가된 피처: elevation, slope, dist_crosswalk, dist_railway, dist_river")
+    print(f"[GeoConstraints] 완료 — 추가된 피처: elevation, slope, dist_crosswalk, dist_railway, dist_river")
     return result
