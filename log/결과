@@ -213,3 +213,41 @@ weighted avg       0.76      0.75      0.75      4995
  9. saturation             : 0.0375
 10. survival_months        : 0.0000
 --------------------------------------------------
+
+#3-2: 버스 정류장 거리 변수 단독 기여도 검증 (Ablation Study)
+
+🚀 [실험 3-2] 데이터 수집 (베이스라인 + 버스 단독)...
+🚀 [Step 2] 베이스라인 피처 생성 (D1~D5)...
+C:\Users\Administrator\Desktop\민재폴더\광운대학교\26년 1학기\캡스톤\project\code\main\src\feature_merger.py:58: FutureWarning: Downcasting behavior in Series and DataFrame methods 'where', 'mask', and 'clip' is deprecated. In a future version this will not infer object dtypes or cast all-round floats to integers. Instead call result.infer_objects(copy=False) for object inference, or cast round floats explicitly. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  return master_df.fillna(0)
+🚀 [Step 3] 공간 연산 (버스 정류장 최단거리)...
+🚀 [Step 4] 모델 학습 및 평가 (버스 기여도 확인)...
+
+============================================================
+🏆 [실험 #05 모델 평가 결과]
+------------------------------------------------------------
+✅ Accuracy (정확도) : 0.7413
+🔥 AUC Score         : 0.8057
+============================================================
+
+📊 [상세 분류 리포트]
+              precision    recall  f1-score   support
+
+       영업(0)       0.58      0.70      0.64      1622
+       폐업(1)       0.84      0.76      0.80      3373
+
+    accuracy                           0.74      4995
+   macro avg       0.71      0.73      0.72      4995
+weighted avg       0.76      0.74      0.75      4995
+
+
+📈 [변수 중요도 TOP 10]
+open_year            0.457533
+local_competitors    0.240345
+avg_sales            0.106769
+sales_per_store      0.083131
+bus_dist_m           0.061276
+saturation           0.050946
+store_age            0.000000
+dtype: float32
+------------------------------------------------------------
