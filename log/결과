@@ -57,4 +57,61 @@ local_competitors    0.076111
          end_date    0.000000
 ==================================================
 
+#02: 하이퍼파라미터 튜닝 및 모델 최적화
 
+[System] 서울시 폐업 예측 지리 정보 강화 파이프라인 가동...
+Loaded Basic District SHP. Total polygons: 5665
+
+[Step 1] 데이터 수집 시도...
+[Info] 상가 데이터 수집 중 (DS3)...
+[Info] 지하철 역사 마스터 데이터 수집 중...
+✅ 지하철역 783개 정보 수집 완료.
+
+[Step 2] 점포별 최단 지하철 거리(m) 계산 중...
+   - Mapping Success: Open 7637, Closed 16361
+
+[Step 3] 최종 마스터 테이블 생성 중...
+C:\Users\Administrator\Desktop\민재폴더\광운대학교\26년 1학기\캡스톤\project\code\main\src\feature_merger.py:96: FutureWarning: Downcasting behavior in Series and DataFrame methods 'where', 'mask', and 'clip' is deprecated. In a future version this will not infer object dtypes or cast all-round floats to integers. Instead call result.infer_objects(copy=False) for object inference, or cast round floats explicitly. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  return master_df.drop(columns=['region_key'], errors='ignore').fillna(0)
+
+[Step 4] XGBoost 모델 학습 및 변수 중요도 분석...
+Training XGBoost (classification) on 19198 samples...
+C:\Users\Administrator\anaconda3\envs\capstone\lib\site-packages\xgboost\training.py:200: UserWarning: [18:22:56] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\learner.cc:782: 
+Parameters: { "use_label_encoder" } are not used.
+
+  bst.update(dtrain, iteration=i, fobj=obj)
+
+--- Prediction Samples (Actual vs Predicted) ---
+       Actual  Predicted
+3328        0          0
+20254       0          0
+10376       1          0
+12064       1          0
+1336        1          0
+1962        1          1
+6173        0          0
+5570        0          0
+11547       1          0
+3100        0          0
+
+--- Evaluation Results ---
+Accuracy: 0.7267
+AUC Score: 0.8142
+
+Feature importance plot is ready.
+
+==================================================
+🚀 [실험 결과] 변수 중요도 (Feature Importance) TOP 10
+==================================================
+          Feature  Importance
+        open_year    0.530427
+local_competitors    0.329730
+       saturation    0.034393
+ geo_access_score    0.022937
+    subway_dist_m    0.022245
+  sales_per_store    0.021323
+        avg_sales    0.019777
+      pop_density    0.019168
+        store_age    0.000000
+         end_date    0.000000
+==================================================
