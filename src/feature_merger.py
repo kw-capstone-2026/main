@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from datetime import datetime
 
 class FeatureMerger:
@@ -53,25 +54,29 @@ class FeatureMerger:
         
         return df
 
-    def create_master_table(self, 
-                            df_stores: pd.DataFrame, 
-                            df_sales: pd.DataFrame = None, 
-                            df_pop: pd.DataFrame = None) -> pd.DataFrame:
+    def create_master_table(self,
+                            df_stores: pd.DataFrame,
+                            df_sales: pd.DataFrame = None,
+                            df_pop: pd.DataFrame = None,
+                            df_geo: pd.DataFrame = None) -> pd.DataFrame:
         """
         [최종 진화 버전] 개별 점포 단위(Store-level) 학습용 마스터 테이블 생성
+
+        df_geo: 지리적 제약 피처가 담긴 DataFrame (BAS_ID 기준 병합)
+                컬럼: elevation, slope, dist_crosswalk, dist_railway, dist_river
         """
         # 기초구역 매핑에 실패한 데이터(NaN)는 분석에서 제외
         master_df = df_stores.dropna(subset=['BAS_ID']).copy()
-        
+
         # 1. 점포 연차 계산
         master_df['open_year'] = pd.to_datetime(master_df['인허가일자'], errors='coerce').dt.year
         master_df['open_year'] = master_df['open_year'].fillna(2020)
         master_df['store_age'] = 2026 - master_df['open_year']
-        
+
         # 2. 구역 내 경쟁 업체 수 계산
         comp_cnt = master_df.groupby('BAS_ID').size().reset_index(name='local_competitors')
         master_df = master_df.merge(comp_cnt, on='BAS_ID', how='left')
-        
+
         # 3. 외부 데이터 결합 (매출/인구)
         master_df['region_key'] = master_df['BAS_ID'].str[:3]
         if df_sales is not None and not df_sales.empty:
@@ -80,7 +85,7 @@ class FeatureMerger:
             master_df['avg_sales'] = global_sales_mean * (1 + (master_df['region_key'].astype(int) % 10 - 5) * 0.05)
         else:
             master_df['avg_sales'] = 0
-            
+
         if df_pop is not None and not df_pop.empty:
             pop_col = 'TOT_FLPOP_CO' if 'TOT_FLPOP_CO' in df_pop.columns else 'RESDNT_POPLTN_CNT'
             df_pop[pop_col] = pd.to_numeric(df_pop[pop_col], errors='coerce')
@@ -92,5 +97,15 @@ class FeatureMerger:
         # 4. 상권 포화도 파생 변수 생성
         master_df['saturation'] = master_df['local_competitors'] / master_df['store_age'].clip(lower=1)
         master_df['sales_per_store'] = master_df['avg_sales'] / master_df['local_competitors'].clip(lower=1)
+
+        # 5. 지리적/물리적 제약 피처 병합
+        D5_COLS = ['elevation', 'slope', 'dist_crosswalk', 'dist_railway', 'dist_river']
+        if df_geo is not None and not df_geo.empty:
+            geo_cols = ['BAS_ID'] + [c for c in D5_COLS if c in df_geo.columns]
+            geo_bas = df_geo[geo_cols].drop_duplicates(subset='BAS_ID')
+            master_df = master_df.merge(geo_bas, on='BAS_ID', how='left')
+        else:
+            for col in D5_COLS:
+                master_df[col] = np.nan
 
         return master_df.drop(columns=['region_key'], errors='ignore').fillna(0)
