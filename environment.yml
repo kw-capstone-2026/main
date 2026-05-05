@@ -33,6 +33,8 @@ dependencies:
     - scipy==1.13.1
     # NASA SRTM 수치표고모델 (키 불필요)
     - srtm.py==0.3.4
+    # OSM 철도/하천 공간 데이터 수집 (지상 구간 필터 포함)
+    - osmnx==2.1.0
     # 크롤링
     - selenium==4.21.0
     - beautifulsoup4==4.12.3
