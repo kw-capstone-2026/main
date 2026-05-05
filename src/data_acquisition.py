@@ -11,10 +11,10 @@ class PublicDataAPI:
 
     def __init__(self):
         # .env에서 로드된 환경변수 사용
-        self.vworld_key = os.environ.get('VWORLD_API_KEY')
-        # 새롭게 업데이트된 디코딩 키 사용
+        self.vworld_key      = os.environ.get('VWORLD_API_KEY')
         self.public_data_key = os.environ.get('PUBLIC_DATA_API_KEY')
-        self.seoul_key = os.environ.get('SEOUL_DATA_KEY')
+        self.seoul_key       = os.environ.get('SEOUL_DATA_KEY')
+        self.nsdi_key        = os.environ.get('NSDI_API_KEY')
 
     def get_coords_from_vworld(self, address: str) -> Optional[Dict[str, float]]:
         """
@@ -206,3 +206,76 @@ class PublicDataAPI:
                 return res['SPOP_LOCAL_RESD_JACHI']['row']
         except: pass
         return None
+
+    # ──────────────────────────────────────────────────────────────
+    # D5: 지리적/물리적 제약 데이터 수집
+    # ──────────────────────────────────────────────────────────────
+
+    def get_elevation_srtm(self, lat: float, lng: float) -> Optional[float]:
+        """
+        NASA SRTM 수치표고모델로 고도(m)를 반환합니다.
+        srtm.py 라이브러리가 첫 호출 시 해당 타일을 자동 다운로드합니다.
+        캐시 경로: ~/.cache/srtm/
+        """
+        try:
+            import srtm
+            if not hasattr(self, '_srtm_data'):
+                self._srtm_data = srtm.get_data()
+            elev = self._srtm_data.get_elevation(lat, lng)
+            return float(elev) if elev is not None else None
+        except Exception:
+            return None
+
+    def get_crosswalk_locations_seoul(self) -> Optional[List[Dict[str, Any]]]:
+        """
+        서울시 대로변 횡단보도 위치 정보를 수집합니다.
+        서울 열린데이터광장 tbTraficCrsng (OA-21209), XML 포맷.
+        좌표는 NODE_WKT 필드의 POINT(경도 위도) 형식으로 제공됩니다.
+        최대 5,000건 수집 후 캐시 저장합니다.
+
+        반환 형식: [{'lat': float, 'lng': float}, ...]
+        """
+        import xml.etree.ElementTree as ET
+        import re
+
+        if not self.seoul_key:
+            return None
+
+        service = 'tbTraficCrsng'
+        max_collect = 5000
+
+        try:
+            # 총 건수 확인
+            probe_url = f"http://openapi.seoul.go.kr:8088/{self.seoul_key}/xml/{service}/1/1/"
+            probe_xml = requests.get(probe_url, timeout=10).text
+            root = ET.fromstring(probe_xml)
+            total_el = root.find('list_total_count')
+            if total_el is None:
+                print(f"[Warning] {service} 총 건수 확인 실패")
+                return None
+            total = int(total_el.text)
+            print(f"[API] 횡단보도 데이터셋 '{service}' 발견: {total}건 (최대 {max_collect}건 수집)")
+
+            results = []
+            wkt_pattern = re.compile(r'POINT\(([0-9.]+)\s+([0-9.]+)\)')
+
+            for start in range(1, min(total + 1, max_collect + 1), 1000):
+                end = min(start + 999, total, max_collect)
+                url = f"http://openapi.seoul.go.kr:8088/{self.seoul_key}/xml/{service}/{start}/{end}/"
+                try:
+                    xml_text = requests.get(url, timeout=15).text
+                    page_root = ET.fromstring(xml_text)
+                    for row in page_root.findall('row'):
+                        wkt = row.findtext('NODE_WKT', '')
+                        m = wkt_pattern.search(wkt)
+                        if m:
+                            results.append({'lat': float(m.group(2)), 'lng': float(m.group(1))})
+                except Exception:
+                    continue
+
+            print(f"[API] 횡단보도 {len(results)}건 수집 완료")
+            return results if results else None
+
+        except Exception as e:
+            print(f"[Warning] 횡단보도 API 수집 실패: {e}")
+            return None
