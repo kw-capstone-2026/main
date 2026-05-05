@@ -8,18 +8,16 @@ class DataAcquisition:
     def __init__(self):
         self.seoul_key = os.environ.get('SEOUL_DATA_KEY')
         self.public_data_key = os.environ.get('PUBLIC_DATA_API_KEY')
-        self.vworld_key = os.environ.get('VWORLD_API_KEY')
 
     def get_store_info_hybrid(self) -> Dict[str, Any]:
-        """[민재님 원본] DS1 + DS3 전수 수집 로직"""
+        """DS1(소상공인) + DS3(인허가) 하이브리드 수집"""
         refined_items = []
-        # DS3 수집
         try:
             init_url = f"http://openapi.seoul.go.kr:8088/{self.seoul_key}/json/LOCALDATA_072405/1/1/"
             init_res = requests.get(init_url, timeout=10).json()
             total_count = int(init_res['LOCALDATA_072405']['list_total_count'])
             
-            # 과거 데이터 2만건 + 최신 데이터 5천건 수집 (샘플링)
+            # 샘플링 수집 (과거 및 최신 데이터)
             range_list = list(range(1, 20001, 1000)) + list(range(max(1, total_count-5000), total_count, 1000))
             for start in range_list:
                 end = start + 999
@@ -41,7 +39,7 @@ class DataAcquisition:
                 except: continue
         except Exception as e: print(f"DS3 Error: {e}")
 
-        # DS1 수집 (보강용 1만건)
+        # DS1 추가 수집 (상권업종별 점포)
         for page in range(1, 11):
             url_ds1 = "http://apis.data.go.kr/B553077/api/open/sdsc2/storeListInUpjong"
             params_ds1 = {"serviceKey": unquote(self.public_data_key), "pageNo": str(page), "numOfRows": "1000", "divId": "indsLclsCd", "key": "I2", "type": "json"}
@@ -52,7 +50,7 @@ class DataAcquisition:
                         refined_items.append({
                             '상가업소번호': item.get('bizesId'), '상호명': item.get('bizesNm'),
                             'lat': item.get('lat'), 'lon': item.get('lon'),
-                            '인허가일자': '20200101', '폐업일자': None, 'is_closed': 0, 'BAS_ID': item.get('lnoAdr', '00000')[:5]
+                            '인허가일자': '20200101', '폐업일자': None, 'is_closed': 0, 'BAS_ID': str(item.get('lnoAdr', '00000'))[:5]
                         })
             except: break
         return {'body': {'items': refined_items}}
@@ -61,12 +59,15 @@ class DataAcquisition:
         url = f"http://openapi.seoul.go.kr:8088/{self.seoul_key}/json/VwsmTrdarSelngQq/1/1000/{year_quarter}"
         try:
             res = requests.get(url).json()
-            return [row for row in res['VwsmTrdarSelngQq']['row'] if row.get('SVC_INDUTY_CD') == 'CS100001']
-        except: return None
+            if 'VwsmTrdarSelngQq' in res:
+                return [row for row in res['VwsmTrdarSelngQq']['row'] if row.get('SVC_INDUTY_CD') == 'CS100001']
+        except: pass
+        return None
 
     def get_seoul_subway(self) -> pd.DataFrame:
         url = f"http://openapi.seoul.go.kr:8088/{self.seoul_key}/json/subwayStationMaster/1/1000/"
-        return pd.DataFrame(requests.get(url).json()['subwayStationMaster']['row'])
+        res = requests.get(url).json()
+        return pd.DataFrame(res['subwayStationMaster']['row'])
 
     def get_seoul_bus_stops(self) -> pd.DataFrame:
         all_bus = []
@@ -81,3 +82,16 @@ class DataAcquisition:
         url = f"http://openapi.seoul.go.kr:8088/{self.seoul_key}/json/LOCALDATA_082501/1/1000/"
         res = requests.get(url).json()
         return pd.DataFrame(res['LOCALDATA_082501']['row']) if 'LOCALDATA_082501' in res else pd.DataFrame()
+
+    def get_seoul_apartments(self) -> pd.DataFrame:
+        """[신규] 서울시 공동주택 아파트 정보 수집"""
+        all_apts = []
+        for start in range(1, 3001, 1000): # 약 3000개 단지 수집
+            url = f"http://openapi.seoul.go.kr:8088/{self.seoul_key}/json/OpenAptInfo/{start}/{start+999}/"
+            try:
+                res = requests.get(url).json()
+                if 'OpenAptInfo' in res:
+                    all_apts.extend(res['OpenAptInfo']['row'])
+                else: break
+            except: break
+        return pd.DataFrame(all_apts)
