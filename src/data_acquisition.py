@@ -279,3 +279,48 @@ class PublicDataAPI:
         except Exception as e:
             print(f"[Warning] 횡단보도 API 수집 실패: {e}")
             return None
+
+    def get_railway_ground_seoul(self) -> Optional[Any]:
+        """
+        OSM에서 서울 지상 철도 노선을 GeoDataFrame으로 반환합니다.
+        지하 구간(tunnel=yes)은 보행 단절 요인이 아니므로 제외합니다.
+        대상: rail, subway(지상), light_rail, tram, narrow_gauge
+
+        반환: GeoDataFrame (LineString, EPSG:4326) 또는 None
+        """
+        try:
+            import osmnx as ox
+            tags = {'railway': ['rail', 'subway', 'light_rail', 'tram', 'narrow_gauge']}
+            gdf = ox.features_from_place("Seoul, South Korea", tags=tags)
+            # 지하 구간 제거
+            if 'tunnel' in gdf.columns:
+                gdf = gdf[gdf['tunnel'].isna() | (gdf['tunnel'] == 'no')]
+            # LineString만 유지
+            gdf = gdf[gdf.geometry.geom_type.isin(['LineString', 'MultiLineString'])].copy()
+            gdf = gdf[['geometry']].reset_index(drop=True)
+            print(f"[OSM] 서울 지상 철도 {len(gdf)}건 수집 완료")
+            return gdf
+        except Exception as e:
+            print(f"[Warning] OSM 철도 수집 실패: {e}")
+            return None
+
+    def get_river_seoul(self) -> Optional[Any]:
+        """
+        OSM에서 서울 주요 하천(한강·지천)을 GeoDataFrame으로 반환합니다.
+        river·canal만 포함 (stream은 보행 단절 효과 미미하므로 제외).
+
+        반환: GeoDataFrame (LineString/Polygon, EPSG:4326) 또는 None
+        """
+        try:
+            import osmnx as ox
+            tags = {'waterway': ['river', 'canal']}
+            gdf = ox.features_from_place("Seoul, South Korea", tags=tags)
+            gdf = gdf[gdf.geometry.geom_type.isin(
+                ['LineString', 'MultiLineString', 'Polygon', 'MultiPolygon']
+            )].copy()
+            gdf = gdf[['geometry']].reset_index(drop=True)
+            print(f"[OSM] 서울 하천 {len(gdf)}건 수집 완료")
+            return gdf
+        except Exception as e:
+            print(f"[Warning] OSM 하천 수집 실패: {e}")
+            return None
