@@ -6,6 +6,8 @@ from src.data_acquisition import PublicDataAPI
 from src.spatial_processor import SpatialProcessor
 from src.feature_merger import FeatureMerger
 from src.models.baseline_xgboost import BaselineXGBoost
+from src.data_acquisition import PublicDataAPI, fetch_macro_data
+from src.feature_merger import FeatureMerger, merge_macro_features
 
 # 1. .env 파일의 API 키 로드
 load_dotenv()
@@ -72,7 +74,30 @@ def main():
     print(f"[Success] 최종 마스터 테이블 생성 완료 (행: {len(master_table)}, 피처 수: {len(master_table.columns)})")
     
     print("\n[Data] Target(Closure) Distribution:")
+    
+    # === [Suin] 데이터 연도 범위 확인 + 마스터 테이블 캐싱 ===
+    print("\n[Inspect] 데이터 연도 범위 분석...")
+    if 'open_year' in master_table.columns:
+        valid_years = master_table[master_table['open_year'] > 0]['open_year']
+        print(f"  - open_year 범위: {int(valid_years.min())} ~ {int(valid_years.max())}")
+        print(f"  - 연도별 점포 수 분포:")
+        print(master_table['open_year'].value_counts().sort_index())
+    
+    # 마스터 테이블 CSV 저장 (재사용을 위해)
+    cache_path = 'master_table.csv'
+    master_table.to_csv(cache_path, index=False, encoding='utf-8-sig')
+    print(f"[Saved] 마스터 테이블 저장 완료: {cache_path}")
+    # === [Suin] 추가 코드 끝 ===
+
     print(master_table['is_closed'].value_counts())
+
+    # 거시 경제 데이터 로드 및 병합 
+    # =====================================================================
+    print("\n[Step 3.5] 거시 경제 데이터(부동산/금리/CPI/최저임금) 통합 중...")
+    macro_dict = fetch_macro_data()
+    master_table = merge_macro_features(master_table, macro_dict)
+    print(f"[Success] 거시 피처 병합 완료! 현재 마스터 테이블 컬럼 수: {len(master_table.columns)}")
+    # =====================================================================
 
     # 6. 모델 학습 및 평가 (점포 단위 이진 분류)
     print("\n[Step 4] XGBoost (Classification) 모델 학습 시작...")
@@ -87,6 +112,34 @@ def main():
     print(f"[Data] 학습에 사용될 핵심 피처 목록: {features}")
     model = BaselineXGBoost(model_type='classification')
     model.train_and_evaluate(master_table, target_col=target, feature_cols=features)
+    # 피처 중요도 수치 출력 로직
+    # =====================================================================
+    print("\n[Analysis] 피처 중요도 (상위 10개):")
+    
+    # 모델 안에 저장된 feature importances 가져오기
+    if hasattr(model, 'model') and hasattr(model.model, 'feature_importances_'):
+        importances = model.model.feature_importances_
+        feature_names = features
+        
+        # 데이터프레임으로 만들어서 보기 좋게 내림차순 정렬
+        imp_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        imp_df = imp_df.sort_values(by='Importance', ascending=False)
+        
+        # 1. 전체 상위 10개 출력
+        print(imp_df.head(10).to_string(index=False))
+        
+        # 2. 내가 추가한 '거시경제 지표'들만 쏙 뽑아서 확인하기
+        print("\n[Analysis] 🔍 거시경제 지표 기여도 특별 확인:")
+        macro_cols = ['real_estate_index', 'interest_rate', 'cpi', 'min_wage_hourly']
+        macro_result = imp_df[imp_df['Feature'].isin(macro_cols)]
+        
+        if not macro_result.empty:
+            print(macro_result.to_string(index=False))
+        else:
+            print("거시경제 지표가 모델 학습에 사용되지 않았습니다. 컬럼명을 확인해주세요.")
+    else:
+        print("피처 중요도를 추출할 수 없습니다. (모델 객체 구조 확인 필요)")
+    # =====================================================================
     print("\n[System] 모든 파이프라인 과정이 성공적으로 완료되었습니다!")
 
 if __name__ == "__main__":

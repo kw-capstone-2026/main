@@ -206,3 +206,44 @@ class PublicDataAPI:
                 return res['SPOP_LOCAL_RESD_JACHI']['row']
         except: pass
         return None
+
+def fetch_macro_data():
+    """
+    data/macro/ 폴더에서 거시 경제 데이터를 불러오고, 
+    전년 대비 변동폭 등 동적 시계열 지표를 생성하여 반환합니다.
+    """
+    import pandas as pd
+    macro_path = 'data/macro/'
+    
+    # 1. 원본 데이터 로드
+    re_df = pd.read_csv(f'{macro_path}real_estate_price_index.csv')
+    ir_df = pd.read_csv(f'{macro_path}interest_rate_yearly.csv').sort_values('year')
+    cpi_df = pd.read_csv(f'{macro_path}cpi_yearly.csv').sort_values('year')
+    wage_df = pd.read_csv(f'{macro_path}min_wage.csv').sort_values('year')
+    
+    wage_col = 'min_wage_hourly' if 'min_wage_hourly' in wage_df.columns else 'min_wage'
+    # ------------------------------------------
+
+    # 2. 금리(Interest Rate) 동적 지표 생성
+    ir_df['ir_delta'] = ir_df['interest_rate'].diff()
+    ir_df['ir_3y_avg_diff'] = ir_df['interest_rate'] - ir_df['interest_rate'].rolling(window=3).mean()
+    
+    # 3. 최저임금(Minimum Wage) 동적 지표 생성
+    # 찾은 wage_col을 사용하여 계산합니다.
+    wage_df['wage_growth_rate'] = wage_df[wage_col].pct_change() * 100
+    wage_df['wage_3y_avg_diff'] = wage_df[wage_col] - wage_df[wage_col].rolling(window=3).mean()
+    
+    # 4. 물가(CPI) 동적 지표 생성
+    cpi_df['cpi_growth_rate'] = cpi_df['cpi'].pct_change() * 100
+    
+    # 5. 결측치 처리
+    ir_df = ir_df.fillna(0)
+    wage_df = wage_df.fillna(0)
+    cpi_df = cpi_df.fillna(0)
+        
+    return {
+        'real_estate': re_df,
+        'interest_rate': ir_df,
+        'cpi': cpi_df,
+        'min_wage': wage_df
+    }

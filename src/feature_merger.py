@@ -94,3 +94,31 @@ class FeatureMerger:
         master_df['sales_per_store'] = master_df['avg_sales'] / master_df['local_competitors'].clip(lower=1)
 
         return master_df.drop(columns=['region_key'], errors='ignore').fillna(0)
+
+def merge_macro_features(base_df, macro_dict):
+    """
+    base_df의 'open_year'를 기준으로 거시 지표들을 모두 병합합니다.
+    """
+    # 1. 부동산 데이터 연도별 평균 처리 (서울 소계 기준)
+    re_df = macro_dict['real_estate']
+    re_seoul = re_df[re_df['region_2'] == '소계']
+    re_yearly = re_seoul.groupby('year')['price_index'].mean().reset_index()
+    re_yearly.rename(columns={'price_index': 'real_estate_index'}, inplace=True)
+
+    # 2. 병합할 데이터프레임들을 리스트로 묶기
+    macro_dfs = [
+        re_yearly, 
+        macro_dict['interest_rate'], 
+        macro_dict['cpi'], 
+        macro_dict['min_wage']
+    ]
+
+    # 3. base_df에 차례대로 Left Join
+    for df in macro_dfs:
+        base_df = pd.merge(base_df, df, left_on='open_year', right_on='year', how='left')
+        
+        # 조인 후 불필요해진 우측 'year' 컬럼은 바로 삭제해서 깔끔하게 유지
+        if 'year' in base_df.columns:
+            base_df.drop(columns=['year'], inplace=True)
+
+    return base_df
