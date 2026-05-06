@@ -56,7 +56,8 @@ class FeatureMerger:
     def create_master_table(self, 
                             df_stores: pd.DataFrame, 
                             df_sales: pd.DataFrame = None, 
-                            df_pop: pd.DataFrame = None) -> pd.DataFrame:
+                            df_pop: pd.DataFrame = None,
+                            df_living_pop: pd.DataFrame = None) -> pd.DataFrame:
         """
         [최종 진화 버전] 개별 점포 단위(Store-level) 학습용 마스터 테이블 생성
         """
@@ -72,25 +73,34 @@ class FeatureMerger:
         comp_cnt = master_df.groupby('BAS_ID').size().reset_index(name='local_competitors')
         master_df = master_df.merge(comp_cnt, on='BAS_ID', how='left')
         
-        # 3. 외부 데이터 결합 (매출/인구)
-        master_df['region_key'] = master_df['BAS_ID'].str[:3]
+        # 3. 외부 데이터 결합 (DS2: 상권 매출/유동인구, DS5: 자치구 격자 생활인구)
+        # DS2 상권 매출/유동인구 (상권 폴리곤 매핑 전까지는 서울시 평균 적용)
         if df_sales is not None and not df_sales.empty:
             df_sales['THSMON_SELNG_AMT'] = pd.to_numeric(df_sales['THSMON_SELNG_AMT'], errors='coerce')
-            global_sales_mean = df_sales['THSMON_SELNG_AMT'].mean()
-            master_df['avg_sales'] = global_sales_mean * (1 + (master_df['region_key'].astype(int) % 10 - 5) * 0.05)
+            master_df['avg_sales'] = df_sales['THSMON_SELNG_AMT'].mean()
         else:
             master_df['avg_sales'] = 0
             
         if df_pop is not None and not df_pop.empty:
             pop_col = 'TOT_FLPOP_CO' if 'TOT_FLPOP_CO' in df_pop.columns else 'RESDNT_POPLTN_CNT'
             df_pop[pop_col] = pd.to_numeric(df_pop[pop_col], errors='coerce')
-            global_pop_mean = df_pop[pop_col].mean()
-            master_df['pop_density'] = global_pop_mean * (1 + (master_df['region_key'].astype(int) % 7 - 3) * 0.1)
+            master_df['pop_density'] = df_pop[pop_col].mean()
         else:
             master_df['pop_density'] = 0
+
+        # DS5 격자 생활인구 (자치구 단위 SIG_CD 매핑)
+        if df_living_pop is not None and not df_living_pop.empty and 'SIG_CD' in master_df.columns:
+            df_living_pop['TOT_LVPOP_CO'] = pd.to_numeric(df_living_pop['TOT_LVPOP_CO'], errors='coerce')
+            pop_by_gu = df_living_pop.groupby('ADSTRD_CODE_SE')['TOT_LVPOP_CO'].mean().reset_index()
+            pop_by_gu.rename(columns={'ADSTRD_CODE_SE': 'SIG_CD', 'TOT_LVPOP_CO': 'living_pop'}, inplace=True)
+            master_df = master_df.merge(pop_by_gu, on='SIG_CD', how='left')
+            # 맵핑 안 된 구는 전체 평균으로 보완
+            master_df['living_pop'] = master_df['living_pop'].fillna(df_living_pop['TOT_LVPOP_CO'].mean())
+        else:
+            master_df['living_pop'] = 0
 
         # 4. 상권 포화도 파생 변수 생성
         master_df['saturation'] = master_df['local_competitors'] / master_df['store_age'].clip(lower=1)
         master_df['sales_per_store'] = master_df['avg_sales'] / master_df['local_competitors'].clip(lower=1)
 
-        return master_df.drop(columns=['region_key'], errors='ignore').fillna(0)
+        return master_df.fillna(0)

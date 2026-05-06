@@ -76,7 +76,7 @@ class SpatialProcessor:
             point_gdf = point_gdf.to_crs(self.bas_gdf.crs)
             
         # sjoin 수행 (내부 포함 관계 확인)
-        joined_gdf = gpd.sjoin(point_gdf, self.bas_gdf[['BAS_ID', 'geometry']], how='left', predicate='within')
+        joined_gdf = gpd.sjoin(point_gdf, self.bas_gdf[['BAS_ID', 'SIG_CD', 'geometry']], how='left', predicate='within')
         
         # 디버깅: 영업/폐업별 매핑 성공률 확인
         if 'is_closed' in joined_gdf.columns:

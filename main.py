@@ -61,12 +61,14 @@ def main():
     # 데이터프레임 변환
     df_sales = pd.DataFrame(sales_raw) if sales_raw else pd.DataFrame()
     df_pop = pd.DataFrame(pop_raw) if pop_raw else pd.DataFrame()
+    df_living_pop = pd.DataFrame(living_pop_raw) if living_pop_raw else pd.DataFrame()
     
     # 모든 외부 데이터를 통합하여 마스터 테이블 생성
     master_table = fm.create_master_table(
         df_stores=df_with_survival,
         df_sales=df_sales,
-        df_pop=df_pop
+        df_pop=df_pop,
+        df_living_pop=df_living_pop
     )
     
     print(f"[Success] 최종 마스터 테이블 생성 완료 (행: {len(master_table)}, 피처 수: {len(master_table.columns)})")
