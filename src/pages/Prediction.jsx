@@ -1,7 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, LabelList } from 'recharts'
 import Sidebar from '../components/Sidebar'
-
 import { MOCK_BLOCKS } from '../data/blocks'
 
 const getMockPrediction = (blockId) => {
@@ -15,16 +14,9 @@ const getMockPrediction = (blockId) => {
     openRate: 8.2,
     riskScore: 81,
     survival6m: 51,
-    riskDescription: [
-      '음식점 밀집도 매우 높아 신규 진입 어려움',
-      '폐업률(12.4%)이 개업률(8.2%)보다 높음',
-      '차별화 전략없이는 생존 가능성 낮음'
-    ]
   }
 }
 
-// ✅ 나중에 API 연결할 때 이 부분 교체
-// GET /api/v1/blocks/{blockId}/survivalcurve
 const MOCK_SURVIVAL_CURVE = [
   { month: '3개월', rate: 85 },
   { month: '6개월', rate: 51 },
@@ -32,8 +24,6 @@ const MOCK_SURVIVAL_CURVE = [
   { month: '12개월', rate: 26 },
 ]
 
-// ✅ 나중에 API 연결할 때 이 부분 교체
-// GET /api/v1/blocks/{blockId}/shap
 const MOCK_SHAP = [
   { name: '점포 연차', value: 52.9, color: '#EF4444' },
   { name: '경쟁 업체 수', value: 33.9, color: '#F97316' },
@@ -55,30 +45,26 @@ function Prediction() {
         width: '280px', background: 'white',
         borderRight: '1px solid #E2E8F0',
         display: 'flex', flexDirection: 'column',
-        padding: '20px', overflowY: 'auto'
+        padding: '20px', overflowY: 'hidden'
       }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', color: '#1E293B', textAlign: 'left' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '14px', color: '#1E293B', textAlign: 'left' }}>
           예측 결과
         </h2>
 
         {/* 블록 카드 */}
-<div style={{
-  background: '#5E81F4', borderRadius: '12px',
-  padding: '16px', marginBottom: '12px', color: 'white'
-}}>
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <div>
-      <div style={{ fontSize: '14px', fontWeight: '700', textAlign: 'left', marginBottom: '2px' }}>{data.blockId}</div>
-      <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '2px', textAlign: 'left' }}>{data.blockName}</div>
-      <div style={{ fontSize: '13px', opacity: 0.8, textAlign: 'left' }}>{data.industry}</div>
-    </div>
-    <div style={{ 
-      fontSize: '28px', fontWeight: '700', color: '#FFD700',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      alignSelf: 'center'
-    }}>{data.csi}</div>
-  </div>
-</div>
+        <div style={{
+          background: '#5E81F4', borderRadius: '12px',
+          padding: '16px', marginBottom: '12px', color: 'white'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '700', textAlign: 'left', marginBottom: '2px' }}>{data.blockId}</div>
+              <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '2px', textAlign: 'left' }}>{data.blockName}</div>
+              <div style={{ fontSize: '12px', opacity: 0.8, textAlign: 'left' }}>{data.industry}</div>
+            </div>
+            <div style={{ fontSize: '26px', fontWeight: '700', color: '#FFD700' }}>{data.csi}</div>
+          </div>
+        </div>
 
         {/* 폐업률 */}
         <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
@@ -102,37 +88,38 @@ function Prediction() {
           </div>
         </div>
 
-{/* 위험도 등급 */}
-<div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-    <div style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', textAlign: 'left' }}>위험도 등급</div>
-    <div style={{
-      background: '#FEE2E2', color: '#EF4444',
-      fontSize: '13px', fontWeight: '700',
-      padding: '12px 10px', borderRadius: '12px',
-      textAlign: 'center', minWidth: '56px',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', gap: '4px'
-    }}>
-      <span style={{ fontSize: '11px' }}>위험도</span>
-      <span style={{ fontSize: '18px' }}>높음</span>
-    </div>
-  </div>
-</div>
+        {/* 위험도 등급 */}
+        <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', textAlign: 'left' }}>위험도 등급</div>
+            <div style={{
+              background: '#FEE2E2', color: '#EF4444',
+              fontSize: '12px', fontWeight: '700',
+              padding: '6px 10px', borderRadius: '10px',
+              textAlign: 'center', minWidth: '52px',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: '2px'
+            }}>
+              <span style={{ fontSize: '10px' }}>위험도</span>
+              <span style={{ fontSize: '16px' }}>높음</span>
+            </div>
+          </div>
+        </div>
+
         {/* 종합 리스크 */}
         <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
-          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '6px', textAlign: 'left' }}>종합 리스크 점수</div>
-          <div style={{ fontSize: '28px', fontWeight: '700', color: '#EF4444', marginBottom: '6px', textAlign: 'left' }}>
-            {data.riskScore}<span style={{ fontSize: '14px', color: '#94A3B8' }}>/100</span>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '4px', textAlign: 'left' }}>종합 리스크 점수</div>
+          <div style={{ fontSize: '26px', fontWeight: '700', color: '#EF4444', marginBottom: '4px', textAlign: 'left' }}>
+            {data.riskScore}<span style={{ fontSize: '13px', color: '#94A3B8' }}>/100</span>
           </div>
-          <div style={{ background: '#F1F5F9', borderRadius: '4px', height: '8px', marginBottom: '14px' }}>
+          <div style={{ background: '#F1F5F9', borderRadius: '4px', height: '6px', marginBottom: '10px' }}>
             <div style={{ background: '#EF4444', width: `${data.riskScore}%`, height: '100%', borderRadius: '4px' }}></div>
           </div>
-          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '6px', textAlign: 'left' }}>6개월 후 생존 확률</div>
-          <div style={{ fontSize: '28px', fontWeight: '700', color: '#5E81F4', marginBottom: '6px', textAlign: 'left' }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '4px', textAlign: 'left' }}>6개월 후 생존 확률</div>
+          <div style={{ fontSize: '26px', fontWeight: '700', color: '#5E81F4', marginBottom: '4px', textAlign: 'left' }}>
             {data.survival6m}%
           </div>
-          <div style={{ background: '#F1F5F9', borderRadius: '4px', height: '8px' }}>
+          <div style={{ background: '#F1F5F9', borderRadius: '4px', height: '6px' }}>
             <div style={{ background: '#5E81F4', width: `${data.survival6m}%`, height: '100%', borderRadius: '4px' }}></div>
           </div>
         </div>
