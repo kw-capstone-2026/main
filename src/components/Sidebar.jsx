@@ -12,7 +12,7 @@ function Sidebar() {
 
   return (
     <div style={{
-      width: '48px', background: 'white',
+      width: '48px', background: '#F5F5FA',
       borderRight: '1px solid #E2E8F0',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', padding: '12px 0', gap: '8px'

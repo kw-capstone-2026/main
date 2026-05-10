@@ -139,7 +139,7 @@ function Prediction() {
       </div>
 
       {/* 오른쪽 */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' ,background: '#F5F5FA'}}>
         <div style={{
           padding: '12px 20px', background: 'white',
           borderBottom: '1px solid #E2E8F0',
