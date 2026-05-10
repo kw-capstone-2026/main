@@ -64,7 +64,7 @@ function Login() {
         <div style={{ width: '100%', maxWidth: '460px' }}>
 
           {isSignUp && (
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '28px' }}>
               <label style={{
                 fontSize: '12px', color: '#94A3B8',
                 display: 'block', marginBottom: '4px', textAlign: 'left'
@@ -84,7 +84,7 @@ function Login() {
             </div>
           )}
 
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '28px' }}>
             <label style={{
               fontSize: '12px', color: '#94A3B8',
               display: 'block', marginBottom: '4px', textAlign: 'left'
@@ -103,7 +103,7 @@ function Login() {
             </div>
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '28px' }}>
             <label style={{
               fontSize: '12px', color: '#94A3B8',
               display: 'block', marginBottom: '4px', textAlign: 'left'
