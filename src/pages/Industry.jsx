@@ -6,20 +6,20 @@ import { MOCK_BLOCKS } from '../data/blocks'
 // ✅ 나중에 API 연결할 때 이 부분 교체
 // GET /api/v1/blocks/{blockId}/industrystats
 const MOCK_INDUSTRY_STATS = [
-  { name: '카페', count: 9, color: '#EF4444' },
-  { name: '음식점', count: 95, color: '#F97316' },
-  { name: '편의점', count: 40, color: '#22C55E' },
-  { name: '술집', count: 35, color: '#3B82F6' },
+  { name: '카페', count: 9, color: '#FFAF53' },
+  { name: '음식점', count: 95, color: '#FF808B' },
+  { name: '편의점', count: 40, color: '#8AF1B9' },
+  { name: '술집', count: 35, color: '#F4BE5E' },
 ]
 
 // ✅ 나중에 API 연결할 때 이 부분 교체
 // GET /api/v1/blocks/{blockId}/industrysurvival
 const MOCK_SURVIVAL = [
-  { name: '편의점', days: 38, color: '#22C55E' },
-  { name: '미용', days: 24, color: '#8B5CF6' },
-  { name: '음식점', days: 22, color: '#F97316' },
-  { name: '술집', days: 19, color: '#3B82F6' },
-  { name: '카페', days: 14, color: '#EF4444' },
+  { name: '편의점', days: 38, color: '#8AF1B9' },
+  { name: '미용', days: 24, color: '#9698D6' },
+  { name: '음식점', days: 22, color: '#FF808B' },
+  { name: '술집', days: 19, color: '#F4BE5E' },
+  { name: '카페', days: 14, color: '#FFAF53' },
 ]
 
 // ✅ 나중에 API 연결할 때 이 부분 교체
@@ -108,7 +108,7 @@ function Industry() {
               업종별 평균 생존 기간 막대 그래프
             </div>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={MOCK_SURVIVAL}>
+              <BarChart data={MOCK_SURVIVAL} barSize={60}>
                 <XAxis dataKey="name" fontSize={12} />
                 <YAxis fontSize={12} />
                 <Tooltip />
