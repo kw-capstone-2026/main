@@ -1,0 +1,17 @@
+export const MOCK_BLOCKS = [
+  { id: 'B01', name: '홍대입구역 인근', csi: 8.8, color: '#3B82F6', region: '홍대', industry: '카페·음식점', population: '주말 15만명/일', stores: '200개 (반경 500m)' },
+  { id: 'B02', name: '연남동 숲길', csi: 8.2, color: '#3B82F6', region: '연남동', industry: '카페·베이커리', population: '주말 12만명/일', stores: '150개 (반경 500m)' },
+  { id: 'B03', name: '홍대 정문 앞', csi: 8.5, color: '#3B82F6', region: '홍대', industry: '의류·액세서리', population: '주말 18만명/일', stores: '250개 (반경 500m)' },
+  { id: 'B04', name: '홍대 주차장 거리', csi: 7.8, color: '#22C55E', region: '홍대', industry: '음식점·주점', population: '평일 8만명/일', stores: '180개 (반경 500m)' },
+  { id: 'B05', name: '연남동 중앙로', csi: 7.4, color: '#22C55E', region: '연남동', industry: '카페·음식점', population: '주말 10만명/일', stores: '120개 (반경 500m)' },
+  { id: 'B06', name: '연남동 카페거리', csi: 7.5, color: '#22C55E', region: '연남동', industry: '카페·디저트', population: '주말 9만명/일', stores: '130개 (반경 500m)' },
+  { id: 'B07', name: '동교동 로데오', csi: 6.2, color: '#22C55E', region: '동교동', industry: '의류·잡화', population: '평일 5만명/일', stores: '100개 (반경 500m)' },
+  { id: 'B08', name: '홍대 걷고싶은거리', csi: 6.9, color: '#22C55E', region: '홍대', industry: '공연·문화', population: '주말 11만명/일', stores: '90개 (반경 500m)' },
+  { id: 'B09', name: '상수동 카페거리', csi: 4.5, color: '#EAB308', region: '상수동', industry: '카페·음식점', population: '평일 4만명/일', stores: '80개 (반경 500m)' },
+  { id: 'B10', name: '동교동 삼거리', csi: 4.2, color: '#EAB308', region: '동교동', industry: '오피스·식당', population: '평일 7만명/일', stores: '90개 (반경 500m)' },
+  { id: 'B11', name: '합정역 인근', csi: 5.1, color: '#EAB308', region: '합정', industry: '카페·음식점', population: '평일 6만명/일', stores: '110개 (반경 500m)' },
+  { id: 'B12', name: '망원동 상권', csi: 5.8, color: '#EAB308', region: '망원동', industry: '음식점·카페', population: '주말 8만명/일', stores: '95개 (반경 500m)' },
+  { id: 'B13', name: '서교동 골목', csi: 3.2, color: '#F97316', region: '서교동', industry: '음식점·주점', population: '평일 3만명/일', stores: '70개 (반경 500m)' },
+  { id: 'B14', name: '마포구청 인근', csi: 3.8, color: '#F97316', region: '마포', industry: '오피스·식당', population: '평일 5만명/일', stores: '85개 (반경 500m)' },
+  { id: 'B15', name: '신촌 중심가', csi: 2.5, color: '#EF4444', region: '신촌', industry: '의류·음식점', population: '주말 14만명/일', stores: '300개 (반경 500m)' },
+]
