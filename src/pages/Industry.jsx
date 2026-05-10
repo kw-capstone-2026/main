@@ -49,7 +49,7 @@ function Industry() {
         padding: '20px', overflowY: 'auto'
       }}>
         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', color: '#1E293B', textAlign: 'left' }}>
-          상권 분석 플랫폼
+          업종 비교
         </h2>
 
         {/* 블록 카드 */}
