@@ -107,8 +107,8 @@ function Industry() {
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#5E81F4', marginBottom: '16px', textAlign: 'left' }}>
               업종별 평균 생존 기간 막대 그래프
             </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={MOCK_SURVIVAL} barSize={60}>
+            <ResponsiveContainer width="80%" height={200}>
+              <BarChart data={MOCK_SURVIVAL} barSize={100}>
                 <XAxis dataKey="name" fontSize={12} />
                 <YAxis fontSize={12} />
                 <Tooltip />
