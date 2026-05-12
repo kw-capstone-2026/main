@@ -24,3 +24,21 @@ env/
 # 로그
 logs/
 *.log
+
+# 상권 맵 파일 (용량 크고 외부 데이터)
+서울시_*.shp
+서울시_*.dbf
+서울시_*.shx
+서울시_*.prj
+서울시_*.cpg
+*.shp
+*.dbf
+*.shx
+*.prj
+*.cpg
+
+# 분석용 스크립트 (선택적)
+analyze_*.py
+check_*.py
+estimate_*.py
+extract_*.py
