@@ -1,106 +1,82 @@
 import pandas as pd
+import numpy as np
+import os
 from datetime import datetime
 
 class FeatureMerger:
     """
-    DS1~DS5 데이터를 통합하여 XGBoost 모델 학습을 위한 Master Table을 생성하는 클래스
+    DS1~DS5 데이터를 통합하여 XGBoost 모델 학습을 위한 Master Table을 생성하는 클래스.
+    10년 단위 메인 모델링을 위한 정제 및 병합 로직을 포함합니다.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, data_dir: str = 'data/parquet_datas'):
+        self.data_dir = data_dir
 
-    def calculate_survival_duration(self, df_permits: pd.DataFrame) -> pd.DataFrame:
+    def load_and_preprocess_df_final(self, file_name: str = 'df_final.parquet') -> pd.DataFrame:
         """
-        DS3(인허가 데이터)를 바탕으로 각 점포의 생존 기간을 계산합니다.
-        
-        :param df_permits: 인허가일자, 폐업일자, 영업상태 등이 포함된 DataFrame
-        :return: 생존 기간(일 또는 개월)이 추가된 DataFrame
+        팀원 DS1이 제공한 대용량 점포 데이터를 로드하고 모델링에 맞게 정제합니다.
         """
-        df = df_permits.copy()
+        path = os.path.join(self.data_dir, file_name)
+        if not os.path.exists(path):
+            print(f"Warning: {path} 를 찾을 수 없습니다.")
+            return pd.DataFrame()
+
+        # 모델 학습에 필수적인 수치형 컬럼만 선택 로드
+        cols_to_keep = [
+            '기준_년분기_코드', '상권_코드', '점포_수', '유사_업종_점포_수',
+            '프랜차이즈_점포_수', '프랜차이즈점포비율(%)', '개인점포비율(%)', 
+            '상권_전체점포_수', '상권 내부 업종 점유율(%)', '개업_율', '폐업_률', 
+            '운영_영업_개월_평균', '폐업_영업_개월_평균'
+        ]
         
-        # 날짜 타입 변환 (예: '20190101' 형식 가정)
-        if '인허가일자' in df.columns:
-            df['open_date'] = pd.to_datetime(df['인허가일자'], format='%Y%m%d', errors='coerce')
-        else:
-            # 컬럼이 없을 경우 현재 시점으로부터 1년 전으로 모든 행을 채움
-            df['open_date'] = pd.to_datetime(datetime.now().date()) - pd.Timedelta(days=365)
-            
-        if '폐업일자' in df.columns:
-            df['close_date'] = pd.to_datetime(df['폐업일자'], format='%Y%m%d', errors='coerce')
-        else:
-            df['close_date'] = pd.NaT
+        # Parquet 스키마 확인 후 존재하는 컬럼만 로드
+        import pyarrow.parquet as pq
+        pq_schema = pq.ParquetFile(path).schema.names
+        actual_cols = [c for c in cols_to_keep if c in pq_schema]
         
-        # 영업 중인 점포는 기준일(현재)을 폐업일처럼 임시 지정
-        current_date = pd.to_datetime(datetime.now().date())
-        df['end_date'] = df['close_date'].fillna(current_date)
+        df = pd.read_parquet(path, columns=actual_cols)
         
-        # 확실하게 datetime64[ns] 타입인지 다시 한번 보장
-        df['open_date'] = pd.to_datetime(df['open_date'])
-        df['end_date'] = pd.to_datetime(df['end_date'])
+        # 데이터 타입 정규화
+        df['기준_년분기_코드'] = df['기준_년분기_코드'].astype('int64')
+        df['상권_코드'] = df['상권_코드'].astype('int64')
         
-        # 생존 기간 산출 (월 단위 환산: 일수 / 30.44)
-        # .dt 접근자를 쓰기 전에 타입이 확실한지 확인
-        df['survival_months'] = (df['end_date'] - df['open_date']).dt.days / 30.44
+        # 문자열로 된 수치 컬럼들 숫자형 변환
+        numeric_cols = ['개업_율', '폐업_률', '운영_영업_개월_평균', '폐업_영업_개월_평균']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         
-        # 타겟 변수: 폐업 여부 (1: 폐업, 0: 영업중)
-        # 이미 수집 단계에서 결정된 is_closed가 있다면 보존, 없으면 생성
-        if 'is_closed' not in df.columns:
-            if '폐업일자' in df.columns:
-                # 공백이나 NaN이 아닌 실제 날짜 값이 있을 때만 폐업으로 간주
-                df['is_closed'] = df['폐업일자'].apply(lambda x: 1 if str(x).strip() and str(x) != 'None' and str(x) != 'nan' else 0)
-            else:
-                df['is_closed'] = 0
-        
+        # 동일 상권/분기 중복 데이터 평균 집계
+        df = df.groupby(['기준_년분기_코드', '상권_코드']).mean().reset_index()
         return df
 
-    def create_master_table(self, 
-                            df_stores: pd.DataFrame, 
-                            df_sales: pd.DataFrame = None, 
-                            df_pop: pd.DataFrame = None,
-                            df_living_pop: pd.DataFrame = None) -> pd.DataFrame:
+    def create_integrated_dataset(self, base_file: str = 'processed_commercial_data.parquet', output_file: str = 'final_merged_commercial_data.parquet'):
         """
-        [최종 진화 버전] 개별 점포 단위(Store-level) 학습용 마스터 테이블 생성
+        베이스라인 데이터와 팀원 데이터를 병합하여 최종 분석용 파일을 생성합니다.
         """
-        # 기초구역 매핑에 실패한 데이터(NaN)는 분석에서 제외
-        master_df = df_stores.dropna(subset=['BAS_ID']).copy()
+        base_path = os.path.join(self.data_dir, base_file)
+        if not os.path.exists(base_path):
+            print(f"Error: 베이스라인 파일 {base_path} 가 없습니다.")
+            return
+
+        print("1. 베이스라인 데이터 로딩...")
+        df_base = pd.read_parquet(base_path)
+        df_base['기준_년분기_코드'] = df_base['기준_년분기_코드'].astype('int64')
+        df_base['상권_코드'] = df_base['상권_코드'].astype('int64')
+
+        print("2. 팀원 점포 데이터(df_final) 정제 및 병합...")
+        df_store = self.load_and_preprocess_df_final()
         
-        # 1. 점포 연차 계산
-        master_df['open_year'] = pd.to_datetime(master_df['인허가일자'], errors='coerce').dt.year
-        master_df['open_year'] = master_df['open_year'].fillna(2020)
-        master_df['store_age'] = 2026 - master_df['open_year']
-        
-        # 2. 구역 내 경쟁 업체 수 계산
-        comp_cnt = master_df.groupby('BAS_ID').size().reset_index(name='local_competitors')
-        master_df = master_df.merge(comp_cnt, on='BAS_ID', how='left')
-        
-        # 3. 외부 데이터 결합 (DS2: 상권 매출/유동인구, DS5: 자치구 격자 생활인구)
-        # DS2 상권 매출/유동인구 (상권 폴리곤 매핑 전까지는 서울시 평균 적용)
-        if df_sales is not None and not df_sales.empty:
-            df_sales['THSMON_SELNG_AMT'] = pd.to_numeric(df_sales['THSMON_SELNG_AMT'], errors='coerce')
-            master_df['avg_sales'] = df_sales['THSMON_SELNG_AMT'].mean()
-        else:
-            master_df['avg_sales'] = 0
+        if not df_store.empty:
+            df_final = pd.merge(df_base, df_store, on=['기준_년분기_코드', '상권_코드'], how='left')
             
-        if df_pop is not None and not df_pop.empty:
-            pop_col = 'TOT_FLPOP_CO' if 'TOT_FLPOP_CO' in df_pop.columns else 'RESDNT_POPLTN_CNT'
-            df_pop[pop_col] = pd.to_numeric(df_pop[pop_col], errors='coerce')
-            master_df['pop_density'] = df_pop[pop_col].mean()
+            output_path = os.path.join(self.data_dir, output_file)
+            df_final.to_parquet(output_path, index=False)
+            print(f"3. 통합 완료! 저장 경로: {output_path}")
+            print(f"   최종 규모: {df_final.shape}")
         else:
-            master_df['pop_density'] = 0
+            print("병합할 추가 데이터가 없습니다.")
 
-        # DS5 격자 생활인구 (자치구 단위 SIG_CD 매핑)
-        if df_living_pop is not None and not df_living_pop.empty and 'SIG_CD' in master_df.columns:
-            df_living_pop['TOT_LVPOP_CO'] = pd.to_numeric(df_living_pop['TOT_LVPOP_CO'], errors='coerce')
-            pop_by_gu = df_living_pop.groupby('ADSTRD_CODE_SE')['TOT_LVPOP_CO'].mean().reset_index()
-            pop_by_gu.rename(columns={'ADSTRD_CODE_SE': 'SIG_CD', 'TOT_LVPOP_CO': 'living_pop'}, inplace=True)
-            master_df = master_df.merge(pop_by_gu, on='SIG_CD', how='left')
-            # 맵핑 안 된 구는 전체 평균으로 보완
-            master_df['living_pop'] = master_df['living_pop'].fillna(df_living_pop['TOT_LVPOP_CO'].mean())
-        else:
-            master_df['living_pop'] = 0
-
-        # 4. 상권 포화도 파생 변수 생성
-        master_df['saturation'] = master_df['local_competitors'] / master_df['store_age'].clip(lower=1)
-        master_df['sales_per_store'] = master_df['avg_sales'] / master_df['local_competitors'].clip(lower=1)
-
-        return master_df.fillna(0)
+if __name__ == "__main__":
+    merger = FeatureMerger()
+    merger.create_integrated_dataset()
