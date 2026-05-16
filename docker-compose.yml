@@ -49,7 +49,32 @@ services:
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
 
+    # DB 상태 확인 (backend가 뜨기 전에 DB가 준비됐는지 체크)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U capstone_user -d survival_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
     # 컨테이너가 예기치 않게 종료되면 자동 재시작
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend/survival-api
+      dockerfile: Dockerfile
+    container_name: capstone-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # Docker 내부에서는 localhost 대신 서비스 이름 'db'로 접속
+      DB_URL: jdbc:postgresql://db:5432/survival_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
 # 데이터 영구 보관용 볼륨
