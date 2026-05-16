@@ -20,28 +20,6 @@
 
 ---
 
-## 환경변수 설정
-
-프로젝트 루트의 `.env`에 아래 항목이 있는지 확인하세요.  
-(없으면 추가)
-
-```env
-DB_USERNAME=capstone_user
-DB_PASSWORD=capstone1234
-JWT_SECRET=capstone-survival-api-secret-key-must-be-at-least-256-bits-long!!
-```
-
-로컬에서 `./gradlew bootRun`으로 직접 실행하는 경우 `backend/survival-api/.env`도 필요합니다.
-
-```env
-DB_URL=jdbc:postgresql://localhost:5432/survival_db
-DB_USERNAME=capstone_user
-DB_PASSWORD=capstone1234
-JWT_SECRET=capstone-survival-api-secret-key-must-be-at-least-256-bits-long!!
-```
-
----
-
 ## 실행 방법
 
 ### Docker로 실행 (권장)
@@ -72,17 +50,10 @@ cd backend/survival-api
 
 ---
 
-## API 동작 확인
+## swagger
 
 ```bash
-# 블록 목록 조회 (마포구 일대)
-curl "http://localhost:8080/api/v1/blocks?swLat=37.54&swLng=126.90&neLat=37.57&neLng=126.93"
-
-# 블록 상세 조회
-curl "http://localhost:8080/api/v1/blocks/1"
-
-# 예측 결과 조회
-curl "http://localhost:8080/api/v1/blocks/1/prediction"
+http://localhost:8080/swagger-ui/index.html
 ```
 
 ---
