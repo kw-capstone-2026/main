@@ -35,7 +35,7 @@ public class Prediction {
     @Column(precision = 5, scale = 2)
     private BigDecimal openRate;
 
-    @Column(precision = 5, scale = 2)
+    @Column(name = "survival_6m", precision = 5, scale = 2)
     private BigDecimal survival6m;
 
     private Integer riskScore;
