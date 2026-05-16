@@ -13,6 +13,12 @@
 
 ---
 
+## ERD
+
+<img width="644" height="449" alt="스크린샷 2026-05-16 오후 5 58 14" src="https://github.com/user-attachments/assets/a9cf023f-430f-4c35-ab4f-b31144634d0e" />
+
+---
+
 ## 사전 준비
 
 - Docker Desktop 설치 및 실행
