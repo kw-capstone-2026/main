@@ -14,7 +14,7 @@ def train_and_export_baseline():
     통합 데이터셋을 사용하여 XGBoost 베이스라인 모델을 학습하고 결과를 출력합니다.
     팀원들이 보조 데이터를 추가했을 때 비교 기준으로 활용됩니다.
     """
-    data_path = 'data/parquet_datas/final_merged_commercial_data.parquet'
+    data_path = 'data/parquet_datas/final_merged_commercial_data_v2.parquet'
     
     if not os.path.exists(data_path):
         print(f"Error: {data_path} 를 찾을 수 없습니다. 데이터 병합을 먼저 진행하세요.")
@@ -23,13 +23,16 @@ def train_and_export_baseline():
     print("1. 데이터 로딩 및 피처 선택...")
     df = pd.read_parquet(data_path)
     
+    df['기준_년분기_코드'] = pd.to_numeric( df['기준_년분기_코드'], errors='coerce')
+    
     target_col = '과포화_위험_여부'
     feature_cols = [
         '당월_매출_금액', '당월_매출_건수', '점포_수_y', '유사_업종_점포_수_y', 
         '개업_율_y', '폐업_률_y', '프랜차이즈_점포_수_y', '프랜차이즈점포비율(%)', 
         '개인점포비율(%)', '상권_전체점포_수', '상권 내부 업종 점유율(%)', 
         '운영_영업_개월_평균', '폐업_영업_개월_평균', '유효_수요_전환율', 
-        '점포당_평균_매출', '전년_동기_대비_폐업_증감률'
+        '점포당_평균_매출', '전년_동기_대비_폐업_증감률', '소득_구간_코드',
+        '상권_업종_적합도'
     ]
     
     # 존재하는 컬럼만 사용
