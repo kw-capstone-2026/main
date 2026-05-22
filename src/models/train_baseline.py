@@ -21,7 +21,7 @@ def train_and_export_baseline():
     튜닝된 XGBoost 모델 실험
     """
 
-    data_path = 'data/parquet_datas/final_merged_commercial_data_v4.parquet'
+    data_path = 'data/parquet_datas/final_merged_commercial_data_v5.parquet'
 
     if not os.path.exists(data_path):
 
@@ -80,7 +80,16 @@ def train_and_export_baseline():
 
         '총_직장_인구_수',
         '남성_직장_인구_수',
-        '여성_직장_인구_수'
+        '여성_직장_인구_수',
+
+        #density관련 변수 추가
+        '직장인구_100명당_점포수',
+        '아파트_100세대당_점포수',
+        '유사업종_점포비율',
+        '직장인구_100명당_유사업종수',
+        '점포당_매출_밀도',
+        '직장인구_1인당_매출',
+        '아파트세대당_매출'
     ]
 
     # 실제 존재하는 컬럼만 사용
