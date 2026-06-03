@@ -1,0 +1,49 @@
+name: capstone
+
+channels:
+  - conda-forge   # GeoPandas, GDAL 등 공간 라이브러리는 conda-forge에서 설치 권장
+  - defaults
+
+dependencies:
+  # Python 버전 고정
+  - python=3.10
+
+  # DB / 공간 연산 (conda-forge에서 설치해야 윈도우 충돌 없음)
+  - psycopg2=2.9.9
+  - sqlalchemy=2.0.30
+  - geopandas=0.14.4
+  - shapely=2.0.4
+
+  # 데이터 처리
+  - pandas=2.2.2
+  - numpy=1.26.4
+
+  # Jupyter
+  - jupyter
+  - ipykernel
+
+  # 시각화
+  - matplotlib=3.9.0
+  - seaborn=0.13.2
+
+  # pip으로만 설치 가능한 라이브러리
+  - pip
+  - pip:
+    # 크롤링
+    - selenium==4.21.0
+    - beautifulsoup4==4.12.3
+    - requests==2.32.2
+    # ML / 생존 분석
+    - xgboost==2.0.3
+    - lifelines==0.27.8
+    - shap==0.45.1
+    # ML 서버 (FastAPI)
+    - fastapi==0.111.0
+    - uvicorn==0.30.1
+
+# ────────────────────────────────────────
+# 팀원 사용법:
+#   1. conda env create -f environment.yml   ← 최초 환경 생성
+#   2. conda activate capstone               ← 환경 진입
+#   3. conda env update -f environment.yml   ← 라이브러리 추가 시 동기화
+# ────────────────────────────────────────

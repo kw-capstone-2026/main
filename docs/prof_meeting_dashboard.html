@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>서울시 상권 과포화 및 폐업 위험도 예측 - 교수님 면담 대시보드</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --bg-color: #080b11;
+      --sidebar-color: #0e131f;
+      --card-bg: #141b2b;
+      --card-hover: #1b2438;
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-muted: #64748b;
+      
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.15);
+      --secondary: #06b6d4;
+      --secondary-glow: rgba(6, 182, 212, 0.15);
+      
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.15);
+      --safe: #3b82f6;
+      --safe-glow: rgba(59, 130, 246, 0.15);
+      --warning: #f59e0b;
+      --success: #10b981;
+      
+      --transition-speed: 0.3s;
+      --font-outfit: 'Outfit', 'Inter', sans-serif;
+      --font-inter: 'Inter', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-inter);
+      overflow-x: hidden;
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 280px;
+      background-color: var(--sidebar-color);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 2rem 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 3rem;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.25rem;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-title {
+      font-family: var(--font-outfit);
+      font-weight: 700;
+      font-size: 1.2rem;
+      line-height: 1.2;
+      background: linear-gradient(to right, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .nav-item {
+      padding: 1rem 1.25rem;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-weight: 500;
+      color: var(--text-sub);
+      transition: all var(--transition-speed) ease;
+      font-family: var(--font-outfit);
+    }
+
+    .nav-item:hover {
+      background-color: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(90deg, var(--primary-glow), transparent);
+      color: var(--primary);
+      border-left: 3px solid var(--primary);
+      padding-left: calc(1.25rem - 3px);
+    }
+
+    .nav-item i {
+      font-size: 1.1rem;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1.5rem;
+    }
+
+    .project-badge {
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .project-badge strong {
+      color: var(--text-sub);
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    /* Main Content Area */
+    .main-content {
+      flex-grow: 1;
+      height: 100%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at 80% 10%, rgba(99, 102, 241, 0.05), transparent 50%),
+                  radial-gradient(circle at 10% 90%, rgba(6, 182, 212, 0.03), transparent 50%);
+    }
+
+    /* Header */
+    .header {
+      padding: 2rem 3rem 1.5rem 3rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      background-color: rgba(8, 11, 17, 0.8);
+      z-index: 10;
+    }
+
+    .header-title h1 {
+      font-family: var(--font-outfit);
+      font-weight: 700;
+      font-size: 1.8rem;
+      margin-bottom: 0.25rem;
+      background: linear-gradient(to right, #fff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-title p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .header-meta {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .meta-chip {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .meta-chip.highlight {
+      border-color: var(--primary);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Content Pane Controller */
+    .tab-pane {
+      display: none;
+      padding: 2.5rem 3rem;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .grid-1-2 {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Dashboard Cards */
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.75rem;
+      position: relative;
+      transition: all var(--transition-speed) ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+      background-color: var(--card-hover);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-title {
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--text-main);
+    }
+
+    .card-title i {
+      color: var(--primary);
+    }
+
+    .card-body {
+      color: var(--text-sub);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stat-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+      font-family: var(--font-outfit);
+      font-weight: 700;
+      font-size: 1.8rem;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .stat-change {
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .stat-change.up { color: var(--success); }
+    .stat-change.down { color: var(--danger); }
+
+    .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--primary);
+    }
+
+    .stat-card:hover .stat-icon {
+      background-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    /* Highlighting Text */
+    .highlight-text {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .success-text {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .danger-text {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    /* Timeline component */
+    .timeline {
+      position: relative;
+      padding-left: 2rem;
+      border-left: 2px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      margin-top: 1rem;
+    }
+
+    .timeline-item {
+      position: relative;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: calc(-2rem - 6px);
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+      transition: all 0.3s ease;
+    }
+
+    .timeline-item.completed .timeline-dot {
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .timeline-item.active .timeline-dot {
+      background-color: var(--warning);
+      box-shadow: 0 0 8px var(--warning);
+      transform: scale(1.3);
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .timeline-title {
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--text-main);
+    }
+
+    .timeline-date {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background-color: rgba(255, 255, 255, 0.03);
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .timeline-desc {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+    }
+
+    /* Custom Tables */
+    .table-container {
+      overflow-x: auto;
+      margin-top: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background-color: rgba(255, 255, 255, 0.02);
+      color: var(--text-main);
+      font-weight: 600;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-family: var(--font-outfit);
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-sub);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: rgba(255, 255, 255, 0.01);
+    }
+
+    /* Accordion Style List */
+    .accordion-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .accordion-item {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background-color: rgba(255, 255, 255, 0.01);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .accordion-header {
+      padding: 1.25rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+
+    .accordion-header:hover {
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .accordion-title {
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0, 1, 0, 1);
+      padding: 0 1.25rem;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-sub);
+      border-top: 1px solid transparent;
+    }
+
+    .accordion-item.open .accordion-content {
+      max-height: 1000px;
+      padding: 1.25rem;
+      border-top: 1px solid var(--border-color);
+      background-color: rgba(0, 0, 0, 0.1);
+      transition: max-height 0.8s cubic-bezier(1, 0, 1, 0);
+    }
+
+    .accordion-icon {
+      transition: transform 0.3s ease;
+      color: var(--text-muted);
+    }
+
+    .accordion-item.open .accordion-icon {
+      transform: rotate(180deg);
+      color: var(--primary);
+    }
+
+    /* SHAP SIMULATOR COMPONENT */
+    .simulator-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .sim-selector {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .sim-btn {
+      flex: 1;
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background-color: rgba(255, 255, 255, 0.02);
+      color: var(--text-sub);
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .sim-btn:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .sim-btn.active-danger {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05));
+      border-color: var(--danger);
+      color: #ff8a8a;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.15);
+    }
+
+    .sim-btn.active-safe {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+      border-color: var(--safe);
+      color: #8ab4f8;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15);
+    }
+
+    .gauge-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 14px;
+      border: 1px solid var(--border-color);
+    }
+
+    .gauge-circle {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .gauge-circle svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-circle circle {
+      fill: none;
+      stroke-width: 10;
+      stroke-linecap: round;
+    }
+
+    .gauge-bg {
+      stroke: rgba(255, 255, 255, 0.03);
+    }
+
+    .gauge-fill {
+      stroke: var(--primary);
+      stroke-dasharray: 440;
+      stroke-dashoffset: 440;
+      transition: stroke-dashoffset 0.8s ease-in-out, stroke 0.8s ease;
+    }
+
+    .gauge-value {
+      position: absolute;
+      font-family: var(--font-outfit);
+      font-weight: 700;
+      font-size: 1.8rem;
+      color: var(--text-main);
+    }
+
+    .gauge-label {
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .shap-waterfall {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0.5rem;
+    }
+
+    .waterfall-row {
+      display: flex;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .w-label {
+      width: 180px;
+      font-weight: 500;
+      color: var(--text-sub);
+    }
+
+    .w-value {
+      width: 100px;
+      text-align: right;
+      color: var(--text-muted);
+      padding-right: 1rem;
+      font-family: var(--font-outfit);
+    }
+
+    .w-bar-container {
+      flex-grow: 1;
+      height: 24px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .w-bar {
+      height: 14px;
+      border-radius: 4px;
+      transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s ease;
+      min-width: 4px;
+      position: relative;
+    }
+
+    .w-bar.positive {
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.4), var(--danger));
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+      transform-origin: left;
+    }
+
+    .w-bar.negative {
+      background: linear-gradient(90deg, var(--safe), rgba(59, 130, 246, 0.4));
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+      transform-origin: right;
+    }
+
+    .w-bar-val {
+      position: absolute;
+      top: -18px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      font-family: var(--font-outfit);
+    }
+
+    .positive .w-bar-val {
+      right: 4px;
+      color: var(--danger);
+    }
+
+    .negative .w-bar-val {
+      left: 4px;
+      color: #5ba3ff;
+    }
+
+    .waterfall-axis {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--border-color);
+      margin-top: 0.5rem;
+      padding-top: 0.25rem;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    /* QnA Styling */
+    .qna-box {
+      border-left: 4px solid var(--primary);
+      background-color: rgba(99, 102, 241, 0.02);
+      border-radius: 0 12px 12px 0;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .qna-box h4 {
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .qna-box h4 i {
+      color: var(--primary);
+    }
+
+    .qna-answer {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+
+    /* Alerts */
+    .custom-alert {
+      display: flex;
+      gap: 1rem;
+      padding: 1.25rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .custom-alert.info {
+      background-color: rgba(99, 102, 241, 0.05);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      color: #c7d2fe;
+    }
+
+    .custom-alert.info i {
+      color: var(--primary);
+      font-size: 1.2rem;
+    }
+
+    .custom-alert.warning {
+      background-color: rgba(245, 158, 11, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      color: #fef3c7;
+    }
+
+    .custom-alert.warning i {
+      color: var(--warning);
+      font-size: 1.2rem;
+    }
+
+    .tag-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .tag-badge.lgbm { background-color: rgba(6, 182, 212, 0.15); color: var(--secondary); border: 1px solid rgba(6, 182, 212, 0.3); }
+    .tag-badge.xgb { background-color: rgba(99, 102, 241, 0.15); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.3); }
+    .tag-badge.ens { background-color: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .tag-badge.data { background-color: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+    
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <i class="fa-solid fa-chart-line-up"></i>
+      </div>
+      <div class="brand-title">
+        SEOUL COMMERCIAL<br><span style="font-size: 0.8rem; font-weight: 500; color: var(--text-muted);">Capstone 2026</span>
+      </div>
+    </div>
+    
+    <nav>
+      <ul class="nav-list">
+        <li class="nav-item active" onclick="switchTab(this, 'tab-status')">
+          <i class="fa-solid fa-square-poll-vertical"></i>
+          <span>현재 구현 상태</span>
+        </li>
+        <li class="nav-item" onclick="switchTab(this, 'tab-challenges')">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>남은 핵심 문제</span>
+        </li>
+        <li class="nav-item" onclick="switchTab(this, 'tab-milestones')">
+          <i class="fa-solid fa-calendar-check"></i>
+          <span>6일 계획 & 질문</span>
+        </li>
+      </ul>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <div class="project-badge">
+        <strong>면담 일정 및 발표 마감</strong>
+        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+          <span>면담: 내일 (10분)</span>
+          <span style="color: var(--warning); font-weight: 600;">D-6 최종종료</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="main-content">
+    
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-title">
+        <h1 id="page-title">교수님 10분 면담 대시보드</h1>
+        <p id="page-desc">현재 구현 현황, 극복 사례, 그리고 남은 6일 마일스톤 및 자문 아젠다 요약</p>
+      </div>
+      <div class="header-meta">
+        <div class="meta-chip highlight">
+          <i class="fa-solid fa-user-tie"></i>
+          <span>지도교수님 피드백용</span>
+        </div>
+        <div class="meta-chip">
+          <i class="fa-solid fa-hourglass-half"></i>
+          <span>면담시간 10분</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- TAB 1: 현재 구현 상태 -->
+    <section id="tab-status" class="tab-pane active">
+      
+      <div class="custom-alert info">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+          <strong>[핵심 요약]</strong> 단일 모델 수준을 넘어, <strong>24개 분기 Open API 데이터 정합 엔진</strong>을 자체 구축하고, <strong>XGBoost + LightGBM 앙상블(ROC-AUC 0.9089)</strong> 모델을 빌드하여, <strong>SHAP XAI 기반의 개별 점포별 1:1 폐업 위험 정밀 진단 파이프라인</strong>까지 구현이 완료되었습니다.
+        </div>
+      </div>
+
+      <!-- Stats Summary -->
+      <div class="grid-3">
+        <div class="card stat-card">
+          <div class="stat-info">
+            <span class="stat-label">통합 데이터 마스터셋</span>
+            <span class="stat-value">51.2만 행</span>
+            <span class="stat-change up"><i class="fa-solid fa-circle-arrow-up"></i> 126개 피처 (131MB)</span>
+          </div>
+          <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-info">
+            <span class="stat-label">최적 앙상블 성능 (PR-AUC)</span>
+            <span class="stat-value">0.3171</span>
+            <span class="stat-change up"><i class="fa-solid fa-circle-arrow-up"></i> ROC-AUC 0.9089</span>
+          </div>
+          <div class="stat-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-info">
+            <span class="stat-label">XAI SHAP 로컬 시뮬레이션</span>
+            <span class="stat-value">구현 완료</span>
+            <span class="stat-change up"><i class="fa-solid fa-circle-check"></i> 오차 0% 정밀 동조</span>
+          </div>
+          <div class="stat-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        </div>
+      </div>
+
+      <!-- Main Columns -->
+      <div class="grid-1-2">
+        
+        <!-- Left: Key Details -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="card-title">
+            <i class="fa-solid fa-list-check"></i>
+            <span>3대 핵심 구현 파이프라인</span>
+          </div>
+          
+          <div class="accordion-list">
+            <div class="accordion-item open">
+              <div class="accordion-header" onclick="toggleAccordion(this)">
+                <div class="accordion-title">
+                  <span class="tag-badge data">DATA</span>
+                  <span>1. 데이터 정합 엔진</span>
+                </div>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+              </div>
+              <div class="accordion-content">
+                서울시 OpenAPI 키를 활용, 2019Q1~2024Q4 (24개 분기) 4대 원천 API 데이터를 병합했습니다. 단순히 절대 수치를 조인하는 한계를 극복하기 위해, 상권 내 상대적 포화 경쟁 압력을 포착하는 <strong>7종의 Density 변수(점포당 평균 매출 밀도, 유사업종 점포비율 등) 및 집객시설 밀도</strong> 파생변수를 완전 구축하여 성능 저하 및 정보 소실을 극복했습니다.
+              </div>
+            </div>
+
+            <div class="accordion-item">
+              <div class="accordion-header" onclick="toggleAccordion(this)">
+                <div class="accordion-title">
+                  <span class="tag-badge ens">MODEL</span>
+                  <span>2. 다중 앙상블 시스템</span>
+                </div>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+              </div>
+              <div class="accordion-content">
+                XGBoost의 특정 변수(전년 대비 폐업 증감률 등) 편향 문제를 제어하기 위해 리프 중심 트리의 <strong>LightGBM</strong>을 신규 도입하고, 두 모델을 <strong>XGB 0.3 : LGBM 0.7</strong>의 가중치로 Soft Voting하여 일반화 성능을 극대화했습니다. 3% 수준인 극심한 클래스 불균형에 맞춰 <strong>PR-AUC(0.3171)</strong>와 <strong>소수 F1-Score(0.2361)</strong>로 모델을 철저히 검증했습니다.
+              </div>
+            </div>
+
+            <div class="accordion-item">
+              <div class="accordion-header" onclick="toggleAccordion(this)">
+                <div class="accordion-title">
+                  <span class="tag-badge xgb">XAI</span>
+                  <span>3. SHAP 진단 파이프라인</span>
+                </div>
+                <i class="fa-solid fa-chevron-down accordion-icon"></i>
+              </div>
+              <div class="accordion-content">
+                단순히 예측값만 주는 블랙박스 한계를 극복하고 <strong>SHAP TreeExplainer</strong>를 활용하여 개별 점포별 1:1 폐업 위험 요인을 설명합니다. 글로벌 차원의 영향도 파악(Summary Plot)은 물론, 특정 개별 매장(Danger vs Safe)의 호재/악재 영향도를 waterfall 형태로 직렬화하여 UI 연동이 가능한 구조를 완성했습니다.
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <h4 style="font-family: var(--font-outfit); font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--text-main);"><i class="fa-solid fa-lightbulb" style="color: var(--warning); margin-right: 0.5rem;"></i>과거 팀원 실패 사례의 기술적 극복</h4>
+            <ul style="font-size: 0.85rem; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <li><strong>Teammate 2 (생활인구 붕괴):</strong> 격자 데이터(12.7% 매칭률) 필터링에 의한 데이터 붕괴 및 과포화 점포 극소화(5건)로 인한 학습 불가 현상을 <u>전체 시계열 파이프라인 보존 및 결측치 영리한 보간</u>으로 완벽 복구</li>
+              <li><strong>Teammate 3 (구 단위 조인):</strong> 구 단위 러프한 매핑으로 인한 성능 훼손(중요도 0%) 문제를 <u>상권코드(TRDAR_CD) 단위의 미시적 블록 매핑 사전 구축</u>으로 완전 해결</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Right: Interactive SHAP Simulator (WOW Point) -->
+        <div class="card" style="display: flex; flex-direction: column;">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--secondary);"></i>
+              <span>[시뮬레이터] SHAP 1:1 점포 폐업 위험 진단</span>
+            </div>
+            <span class="tag-badge lgbm">XAI Demo</span>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 1.5rem; flex-grow: 1;">
+            <p style="font-size: 0.85rem;">실제 데이터셋에 학습된 최적 모델의 로컬 SHAP 연산 결과를 실시간 시각화한 모듈입니다. 아래 버튼을 눌러 점포 분류별 로컬 waterfall 기여도가 어떻게 변화하는지 교수님께 직접 조작하여 보여드리세요.</p>
+            
+            <div class="sim-selector">
+              <button id="btn-danger" class="sim-btn active-danger" onclick="simulateSHAP('danger')">
+                <i class="fa-solid fa-circle-exclamation"></i> 고위험 점포 시뮬레이션
+              </button>
+              <button id="btn-safe" class="sim-btn" onclick="simulateSHAP('safe')">
+                <i class="fa-solid fa-circle-check"></i> 안전 점포 시뮬레이션
+              </button>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 0;">
+              
+              <!-- Indicator Gauge -->
+              <div class="gauge-wrapper">
+                <div class="gauge-circle">
+                  <svg viewBox="0 0 160 160">
+                    <circle class="gauge-bg" cx="80" cy="80" r="70"></circle>
+                    <circle id="gauge-fill" class="gauge-fill" cx="80" cy="80" r="70"></circle>
+                  </svg>
+                  <span id="risk-val" class="gauge-value">94.76%</span>
+                </div>
+                <span id="risk-lbl" class="gauge-label danger-text">고위험 점포</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">최종 폐업 위험 확률</span>
+              </div>
+
+              <!-- Explanation Text -->
+              <div style="background-color: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 14px; padding: 1.25rem; font-size: 0.85rem; display: flex; flex-direction: column; justify-content: center;">
+                <strong style="color: var(--text-main); margin-bottom: 0.5rem; display: block;" id="sim-title">🚨 고위험 점포 진단 피드백</strong>
+                <p id="sim-desc" style="color: var(--text-sub); line-height: 1.5;">
+                  해당 점포는 상권 내 평균 폐업 위험(1.52%) 대비 악재 요인들이 압도적으로 우세합니다. 
+                  가장 심각한 악재는 <strong>전년비 폐업이 2배로 급증(SHAP +2.18)</strong>한 것이며, 
+                  <strong>점포당 매출이 91만 원선에 불과(SHAP +1.00)</strong>한 것이 폐업 위험을 결정적으로 폭증시켰습니다.
+                </p>
+              </div>
+
+            </div>
+
+            <!-- Waterfall Bars -->
+            <div style="background-color: rgba(0, 0, 0, 0.15); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--border-color);">
+              <h4 style="font-family: var(--font-outfit); font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-main);"><i class="fa-solid fa-chart-bar" style="margin-right: 0.5rem; color: var(--primary);"></i>피처별 SHAP 기여도 기여 (Base: 1.52%)</h4>
+              
+              <div class="shap-waterfall">
+                <!-- Row 1 -->
+                <div class="waterfall-row">
+                  <span class="w-label">전년_동기_대비_폐업_증감률</span>
+                  <span id="w-val-1" class="w-value">2.0 배</span>
+                  <div class="w-bar-container">
+                    <div id="w-bar-1" class="w-bar positive" style="width: 70%; transform: translateX(0px);">
+                      <span id="w-shap-1" class="w-bar-val">+2.18</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 2 -->
+                <div class="waterfall-row">
+                  <span class="w-label">점포당_평균_매출</span>
+                  <span id="w-val-2" class="w-value">91 만원</span>
+                  <div class="w-bar-container">
+                    <div id="w-bar-2" class="w-bar positive" style="width: 35%; transform: translateX(0px);">
+                      <span id="w-shap-2" class="w-bar-val">+1.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 3 -->
+                <div class="waterfall-row">
+                  <span class="w-label">집객시설_밀도</span>
+                  <span id="w-val-3" class="w-value">높음</span>
+                  <div class="w-bar-container">
+                    <div id="w-bar-3" class="w-bar positive" style="width: 15%; transform: translateX(0px);">
+                      <span id="w-shap-3" class="w-bar-val">+0.42</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 4 -->
+                <div class="waterfall-row">
+                  <span class="w-label">당월_매출_금액 (상쇄)</span>
+                  <span id="w-val-4" class="w-value">638 만원</span>
+                  <div class="w-bar-container">
+                    <div id="w-bar-4" class="w-bar negative" style="width: 8%; margin-left: auto; transform: translateX(0px);">
+                      <span id="w-shap-4" class="w-bar-val">-0.20</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="waterfall-axis">
+                  <span>◀ 폐업 확률 감소 (호재)</span>
+                  <span>평균값 (1.52%)</span>
+                  <span>폐업 확률 증가 (악재) ▶</span>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- TAB 2: 남은 핵심 문제 -->
+    <section id="tab-challenges" class="tab-pane">
+      
+      <div class="custom-alert warning">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <div>
+          <strong>[마감 직전 집중 과제]</strong> 6일의 짧은 여정 동안 완성해야 할 최우선 과제는 <strong>Spring Boot DB 채우기(배치 적재), 프론트-백 API 통신 연동, 그리고 모델 검증을 입증하는 경험적 백테스팅</strong>입니다. 추가 개발보다 융합과 연동에 올인합니다.
+        </div>
+      </div>
+
+      <div class="grid-2">
+        
+        <!-- Challenge 1: Data Migration & Bulk Load -->
+        <div class="card" style="display: flex; flex-direction: column;">
+          <div class="card-title" style="color: var(--secondary);">
+            <i class="fa-solid fa-server"></i>
+            <span>1. 파이썬 마스터셋 -> Spring Boot PostgreSQL DB 일괄 적재</span>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 1.2rem; margin-top: 1rem;">
+            <p><strong>[현상태]</strong> 파이썬 ML 분석 단에서 앙상블 예측 및 SHAP 로컬 시각화 수치는 완벽하게 연산되어 있으나, Spring Boot JPA가 연동하는 PostgreSQL DB의 `predictions` 및 `shap_features` 테이블은 아직 빈 껍데기 상태입니다.</p>
+            <p><strong>[핵심 도전 과제]</strong>
+              <br>51.2만 행 대용량 Parquet 데이터셋에 대해 우리가 학습 완료한 Soft Voting 모델로 예측값과 SHAP Top5 피처 기여도 데이터를 **일괄적으로 뽑아낸 후, 이를 DB의 테이블 구조(`schema.sql`)에 맞춰 direct import(Bulk Insert)해 주는 마이그레이션 스크립트**가 부재하여 DB가 텅 빈 모순을 격파해야 합니다.
+            </p>
+            <div style="background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem;">
+              <span style="color: #64748b;">-- database/schema.sql 연계 타겟 테이블</span><br>
+              CREATE TABLE IF NOT EXISTS predictions (<br>
+              &nbsp;&nbsp;block_id BIGINT REFERENCES blocks(id),<br>
+              &nbsp;&nbsp;csi_score NUMERIC(4,2),<br>
+              &nbsp;&nbsp;risk_grade VARCHAR(20),<br>
+              &nbsp;&nbsp;closure_rate NUMERIC(5,2),<br>
+              &nbsp;&nbsp;open_rate NUMERIC(5,2),<br>
+              &nbsp;&nbsp;survival_6m NUMERIC(5,2)<br>
+              );
+            </div>
+            <p><strong>[해결책 - 마이그레이션 스크립트 작성]</strong> 6일의 마감 기간 내에 파이썬 단에서 **PostgreSQL Seed SQL/CSV 제너레이터**를 구현하여 DB에 대량의 분석 데이터를 적재하고, 리액트가 Spring Boot API를 통해 이를 1ms 내로 쿼리하도록 서빙 연결을 완수합니다.</p>
+          </div>
+        </div>
+
+        <!-- Challenge 2: Frontend-Backend API Connection -->
+        <div class="card" style="display: flex; flex-direction: column;">
+          <div class="card-title" style="color: var(--danger);">
+            <i class="fa-solid fa-circle-nodes"></i>
+            <span>2. React Mock UI -> 백엔드 실제 통신(Axios) 연동</span>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 1.2rem; margin-top: 1rem;">
+            <p><strong>[현상태]</strong> 리액트 프론트엔드의 화면 레이아웃과 Recharts 차트는 미려하게 그려져 있으나, 모든 수치와 그래프 값들은 `MOCK_SHAP` 등 하드코딩된 더미 JS 데이터로 구동되는 완벽한 Mock 상태입니다.</p>
+            <p><strong>[핵심 도전 과제]</strong>
+              <br>Spring Boot 백엔드의 엔드포인트(`/api/v1/blocks/{blockId}/prediction` 등)를 호출하여 DB의 진짜 예측/SHAP 기여 데이터를 받아와 Recharts 그래프에 동적으로 실시간 매핑해 주어야 합니다.
+            </p>
+            <div style="background-color: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.15); padding: 1.25rem; border-radius: 10px;">
+              <h5 style="color: var(--text-main); font-size: 0.9rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-link" style="color: var(--primary); margin-right: 0.5rem;"></i>리액트 Axios 연동 아키텍처</h5>
+              <ul style="font-size: 0.85rem; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                <li><strong>API 주소:</strong> `/api/v1/blocks/{blockId}/prediction` 호출</li>
+                <li><strong>수치 데이터 바인딩:</strong> 폐업률, 개업률, 6개월 생존 확률, 리스크 점수 매핑</li>
+                <li><strong>차트 데이터 바인딩:</strong> `/shap` 호출 후 Recharts `BarChart`에 실시간 호재/악재 기여도 전달</li>
+              </ul>
+            </div>
+            <p><strong>[기대 효과]</strong> 더미 화면이 아닌, 실제로 DB 데이터베이스와 완벽히 동조되어 마커 클릭 즉시 실제 분석 결과를 보여주는 완벽한 풀스택 시연 서비스를 확보합니다.</p>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- TAB 3: 6일 계획 & 질문 -->
+    <section id="tab-milestones" class="tab-pane">
+      
+      <div class="grid-2">
+        
+        <!-- Left: 6-day Timeline -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-route"></i>
+            <span>최종 발표 마감 6일 마일스톤 계획</span>
+          </div>
+          <div class="card-body">
+            
+            <div class="timeline">
+              <div class="timeline-item completed">
+                <div class="timeline-dot"></div>
+                <div class="timeline-header">
+                  <span class="timeline-title">Day 1~2: 파이썬 분석 데이터 -> PostgreSQL DB 마이그레이션</span>
+                  <span class="timeline-date">진행중</span>
+                </div>
+                <p class="timeline-desc">Parquet 마스터 마스터셋에 앙상블 모델을 가동하여 전체 상권/업종별 예측치 및 SHAP Top5 기여 요인을 일괄 산출. 이를 백엔드 PostgreSQL DB 테이블에 BULK INSERT로 적재 완료하여 데이터 정합성 확보.</p>
+              </div>
+
+              <div class="timeline-item active">
+                <div class="timeline-dot"></div>
+                <div class="timeline-header">
+                  <span class="timeline-title">Day 3~4: React Mock 데이터를 백엔드 Axios 통신으로 전환</span>
+                  <span class="timeline-date">예정</span>
+                </div>
+                <p class="timeline-desc">리액트 프론트엔드의 Mock 더미 데이터 코드를 전량 제거. Axios 통신 모듈을 구축하여 Spring Boot 백엔드의 Prediction Controller 엔드포인트와 통신을 열고, DB 조회가 화면 차트에 동적으로 연동되도록 마감.</p>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-header">
+                  <span class="timeline-title">Day 5: 경험적 백테스팅 스크립트 가동 및 수치 확보</span>
+                  <span class="timeline-date">예정</span>
+                </div>
+                <p class="timeline-desc">2022년 예측 모델링 돌려 실제 2023~2024년 오차 행렬 및 정밀도(Precision) 정합성 확인. "우리 모델이 경보를 날렸던 매장 중 실제 XX%가 전량 폐업했다"는 최강의 증명 데이터 산출.</p>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-header">
+                  <span class="timeline-title">Day 6: 통합 테스트, 성능 튜닝 및 최종 PPT 리허설</span>
+                  <span class="timeline-date">종료</span>
+                </div>
+                <p class="timeline-desc">서버 응답 속도 최적화, 프론트 지도 인터랙션 버그 테스트. 논문/발표 보고서에 최종 백테스팅 및 성능 수치 최종 동기화하여 프로젝트 최종 마무리.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Right: Professor QnA Agenda -->
+        <div class="card" style="display: flex; flex-direction: column;">
+          <div class="card-title" style="color: var(--warning);">
+            <i class="fa-solid fa-graduation-cap"></i>
+            <span>교수님 피드백 및 자문 요청 (3대 질문 사항)</span>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 0.5rem; justify-content: center; flex-grow: 1;">
+            <p style="font-size: 0.85rem; margin-bottom: 1.5rem;">10분의 면담 시간 중 가장 중요한 부분입니다. 우리 팀이 실제로 진행한 데이터 정합, 앙상블 모델링, 오프라인 배치 서빙에 대해 현실적이고 깊이 있는 학술 의견을 청취합니다.</p>
+            
+            <div class="qna-box">
+              <h4>
+                <i class="fa-solid fa-circle-question"></i>
+                <span>Q1. 단순 절대치 변수의 한계를 극복한 '상대적 경쟁 밀도(Density)' 피처의 학술적 의의</span>
+              </h4>
+              <p class="qna-answer">
+                "기존 시도들처럼 '유동인구 수', '매출 금액' 같은 단순 절대규모(절대치) 변수만 투입했을 때는 변수의 크기 편향으로 인해 AI 모델의 성능이 정체되었습니다. 저희가 이를 상권 내부의 실제 경쟁 압박으로 해석하기 위해 <strong>'점포당 매출 밀도', '유사업종 점포비율', '집객시설 밀도' 등 상대적 밀도(Density) 파생 변수들을 정교하게 설계하여 기여도 Top 10에 대거 진입</strong>시켰습니다. 이러한 사회과학적 경쟁 모델 관점의 피처 엔지니어링 방식이 졸업논문의 핵심 기여도로 충분한 가치를 가질지 교수님의 학술적 의견을 여쭙고 싶습니다."
+              </p>
+            </div>
+
+            <div class="qna-box">
+              <h4>
+                <i class="fa-solid fa-circle-question"></i>
+                <span>Q2. 데이터 불균형(3%) 상황에서 PR-AUC(0.3171)를 주 지표로 제안하는 것에 대한 지도</span>
+              </h4>
+              <p class="qna-answer">
+                "서울시 상권의 과포화/폐업 상점 비율은 전체의 3% 수준으로 클래스 불균형이 극심합니다. 일반적인 ROC-AUC(0.9089)는 단순히 정상 상권을 잘 맞추는 것으로 거품이 낄 수 있으므로, 저희가 소수 클래스의 실질적 탐지력인 <strong>PR-AUC (0.3171) 및 소수 F1-Score (0.2361)를 모델 평가의 최종 대표 지표</strong>로 논문과 PPT에 제시하여 정밀한 신뢰성을 증명하고자 하는데, 이에 대한 타당성 자문을 구합니다."
+              </p>
+            </div>
+
+            <div class="qna-box">
+              <h4>
+                <i class="fa-solid fa-circle-question"></i>
+                <span>Q3. 시연 안정성을 위한 '배치 예측(Batch Prediction) 및 DB 적재' 서빙 설계 검토</span>
+              </h4>
+              <p class="qna-answer">
+                "졸업 작품 발표 시연의 서버 속도와 통신 안정성을 확보하기 위해, 실시간 파이썬 추론 대신 <strong>파이썬에서 앙상블 예측 확률과 SHAP 분석값을 미리 연산한 뒤, Spring Boot의 predictions 및 shap_features DB 테이블에 배치(Batch)로 일괄 마이그레이션</strong>해 두는 구조를 가져가고자 합니다. 시연 시에는 DB의 특정 상권 코드를 즉시 조회하여 1ms 내로 리액트 차트에 뿌려주는 이 방식이 현실적인 서비스 실현안으로 타당한지 검토 부탁드립니다."
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    // Tab Controller
+    function switchTab(element, tabId) {
+      // Remove active class from all items
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      
+      // Add active class to clicked item
+      element.classList.add('active');
+      
+      // Hide all panes
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Show selected pane
+      document.getElementById(tabId).classList.add('active');
+
+      // Update header details based on active tab
+      const headerTitle = document.getElementById('page-title');
+      const headerDesc = document.getElementById('page-desc');
+
+      if (tabId === 'tab-status') {
+        headerTitle.innerText = "교수님 10분 면담 대시보드";
+        headerDesc.innerText = "현재 구현 현황, 극복 사례, 그리고 남은 6일 마일스톤 및 자문 아젠다 요약";
+      } else if (tabId === 'tab-challenges') {
+        headerTitle.innerText = "졸업 프로젝트 핵심 도전 과제";
+        headerDesc.innerText = "남은 6일 간의 완결성을 위해 해결할 개발적 허들 및 캐싱/백테스팅 핵심 전략";
+      } else if (tabId === 'tab-milestones') {
+        headerTitle.innerText = "프로젝트 마일스톤 & 자문 아젠다";
+        headerDesc.innerText = "발표 6일 전 상세 일정 및 교수님께 의견을 청취할 3대 핵심 질문 사항";
+      }
+
+      // Re-trigger simulator animations if active
+      if (tabId === 'tab-status') {
+        setTimeout(() => {
+          simulateSHAP(currentSimType);
+        }, 100);
+      }
+    }
+
+    // Accordion Controller
+    function toggleAccordion(element) {
+      const item = element.parentElement;
+      const isOpen = item.classList.contains('open');
+      
+      // Close all items in the list
+      const list = item.parentElement;
+      list.querySelectorAll('.accordion-item').forEach(i => {
+        i.classList.remove('open');
+      });
+      
+      // Toggle current item
+      if (!isOpen) {
+        item.classList.add('open');
+      }
+    }
+
+    // SHAP Simulation Controller
+    let currentSimType = 'danger';
+
+    const shapData = {
+      danger: {
+        probability: 94.76,
+        label: '고위험 점포',
+        labelClass: 'danger-text',
+        title: '🚨 고위험 점포 진단 피드백',
+        desc: '해당 점포는 상권 내 평균 폐업 위험(1.52%) 대비 악재 요인들이 압도적으로 우세합니다. 가장 심각한 악재는 <strong>전년비 폐업이 2배로 폭증(SHAP +2.18)</strong>한 것이며, <strong>분기 평균 매출이 91만 원선에 불과(SHAP +1.00)</strong>한 것이 폐업 위험을 결정적으로 높였습니다.',
+        fillColor: '#ef4444',
+        offset: 440 - (440 * 0.9476),
+        bars: [
+          { val: '2.0 배', shap: '+2.18', width: '70%', type: 'positive', offset: 0 },
+          { val: '91 만원', shap: '+1.00', width: '35%', type: 'positive', offset: 0 },
+          { val: '높음', shap: '+0.42', width: '15%', type: 'positive', offset: 0 },
+          { val: '638 만원', shap: '-0.20', width: '8%', type: 'negative', offset: 0 }
+        ]
+      },
+      safe: {
+        probability: 19.29,
+        label: '안전 상권 점포',
+        labelClass: 'success-text',
+        title: '💎 안전 상권 점포 진단 피드백',
+        desc: '해당 점포는 긍정적인 파란색 호재 화살표들이 지표를 대폭 깎아내려 최종 <strong>19.29%의 안전한 상태</strong>로 판별되었습니다. 상권 내 <strong>폐업 폭증이 전혀 없는 안정적인 상태(SHAP -0.82)</strong>와 분기당 <strong>4,751만 원이라는 매우 건강한 매출 성적(SHAP -0.75)</strong>이 강력한 방어 기제로 작용했습니다.',
+        fillColor: '#3b82f6',
+        offset: 440 - (440 * 0.1929),
+        bars: [
+          { val: '0.0 배', shap: '-0.82', width: '28%', type: 'negative', offset: 0 },
+          { val: '4751 만원', shap: '-0.75', width: '25%', type: 'negative', offset: 0 },
+          { val: '매우낮음', shap: '-0.12', width: '5%', type: 'negative', offset: 0 },
+          { val: '1240 만원', shap: '+0.25', width: '9%', type: 'positive', offset: 0 }
+        ]
+      }
+    };
+
+    // Value animation inside simulator
+    function simulateSHAP(type) {
+      currentSimType = type;
+
+      // Update Button States
+      document.getElementById('btn-danger').className = 'sim-btn' + (type === 'danger' ? ' active-danger' : '');
+      document.getElementById('btn-safe').className = 'sim-btn' + (type === 'safe' ? ' active-safe' : '');
+
+      const data = shapData[type];
+
+      // Update Gauge
+      const fillElement = document.getElementById('gauge-fill');
+      fillElement.style.strokeDashoffset = data.offset;
+      fillElement.style.stroke = data.fillColor;
+      
+      // Animate Numeric Change
+      animateValue('risk-val', parseFloat(document.getElementById('risk-val').innerText), data.probability, 800);
+      
+      const labelElement = document.getElementById('risk-lbl');
+      labelElement.innerText = data.label;
+      labelElement.className = 'gauge-label ' + data.labelClass;
+
+      // Update Details Text
+      document.getElementById('sim-title').innerHTML = data.title;
+      document.getElementById('sim-desc').innerHTML = data.desc;
+
+      // Update Waterfall Bars with transition delay
+      for (let i = 1; i <= 4; i++) {
+        const barData = data.bars[i - 1];
+        const bar = document.getElementById('w-bar-' + i);
+        const valText = document.getElementById('w-val-' + i);
+        const shapText = document.getElementById('w-shap-' + i);
+
+        // Reset width to trigger animation
+        bar.style.width = '0%';
+        
+        setTimeout(() => {
+          bar.className = 'w-bar ' + barData.type;
+          bar.style.width = barData.width;
+          valText.innerText = barData.val;
+          shapText.innerText = barData.shap;
+          
+          if (barData.type === 'negative') {
+            bar.style.marginLeft = 'auto';
+            bar.style.marginRight = '0';
+          } else {
+            bar.style.marginLeft = '0';
+            bar.style.marginRight = 'auto';
+          }
+        }, 50);
+      }
+    }
+
+    function animateValue(id, start, end, duration) {
+      if (start === end) return;
+      const range = end - start;
+      let current = start;
+      const increment = end > start ? 0.8 : -0.8;
+      const stepTime = Math.abs(Math.floor(duration / (range / increment)));
+      const obj = document.getElementById(id);
+      
+      const timer = setInterval(() => {
+        current += increment;
+        if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+          clearInterval(timer);
+          obj.innerText = end.toFixed(2) + '%';
+        } else {
+          obj.innerText = current.toFixed(2) + '%';
+        }
+      }, stepTime || 20);
+    }
+
+    // Trigger Initial simulation on load
+    window.onload = function() {
+      simulateSHAP('danger');
+    };
+  </script>
+</body>
+</html>
