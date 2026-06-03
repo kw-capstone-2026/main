@@ -10,6 +10,11 @@ function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const isActive = (path) => {
+    const base = '/' + path.split('/')[1]
+    return location.pathname.startsWith(base)
+  }
+
   return (
     <div style={{
       width: '48px', background: '#F5F5FA',
@@ -37,14 +42,14 @@ function Sidebar() {
             display: 'flex', alignItems: 'center',
             justifyContent: 'center', fontSize: '18px',
             cursor: 'pointer', borderRadius: '6px',
-            background: location.pathname.startsWith(item.path.split('/')[1] === 'prediction' ? '/prediction' : item.path.split('/')[1] === 'industry' ? '/industry' : item.path) ? '#EFF6FF' : 'transparent'
+            background: isActive(item.path) ? '#EFF6FF' : 'transparent',
+            outline: isActive(item.path) ? '2px solid #5E81F4' : 'none',
           }}
         >
           {item.icon}
         </div>
       ))}
 
-      {/* 로그아웃 버튼 - 맨 아래 */}
       <div style={{ marginTop: 'auto' }}>
         <div
           onClick={() => navigate('/')}

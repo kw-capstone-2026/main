@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Rectangle, Tooltip, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MOCK_BLOCKS, BLOCKS_BY_DISTRICT } from '../data/blocks'
+import Sidebar from '../components/Sidebar'
 
 const getColor = (csi) => {
   if (csi >= 8) return '#3B82F6'
@@ -54,6 +55,7 @@ function MainMap() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#F5F5FA' }}>
+      <Sidebar />
 
       {/* 왼쪽 사이드바 */}
       <div style={{
@@ -62,8 +64,8 @@ function MainMap() {
         display: 'flex', flexDirection: 'column',
         padding: '20px', overflow: 'hidden'
       }}>
-        <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1E293B', textAlign: 'left' }}>
-          메뉴 이름
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', color: '#1E293B', textAlign: 'left' }}>
+          메인 지도
         </h2>
 
         {/* 블록 목록 */}

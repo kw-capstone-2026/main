@@ -149,11 +149,11 @@ function Prediction() {
             <div style={{ background: data.riskColor, width: `${data.riskScore}%`, height: '100%', borderRadius: '4px' }}></div>
           </div>
           <div style={{ fontSize: '14px', fontWeight: '600', color: '#1E293B', marginBottom: '4px', textAlign: 'left' }}>6개월 후 생존 확률</div>
-          <div style={{ fontSize: '26px', fontWeight: '700', color: '#5E81F4', marginBottom: '4px', textAlign: 'left' }}>
+          <div style={{ fontSize: '26px', fontWeight: '700', color: data.survival6m >= 50 ? '#3B82F6' : '#EF4444', marginBottom: '4px', textAlign: 'left' }}>
             {data.survival6m}%
           </div>
           <div style={{ background: '#F1F5F9', borderRadius: '4px', height: '6px' }}>
-            <div style={{ background: '#5E81F4', width: `${data.survival6m}%`, height: '100%', borderRadius: '4px' }}></div>
+            <div style={{ background: data.survival6m >= 50 ? '#3B82F6' : '#EF4444', width: `${data.survival6m}%`, height: '100%', borderRadius: '4px' }}></div>
           </div>
         </div>
 
@@ -180,14 +180,15 @@ function Prediction() {
           <span style={{ fontSize: '15px', fontWeight: '600', color: '#1E293B' }}>Dashboard</span>
         </div>
 
-        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+        {/* ✅ overflowY: hidden 으로 변경 */}
+        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'hidden' }}>
 
-          {/* 생존 확률 곡선 */}
+          {/* 생존 확률 곡선 - height 160으로 축소 */}
           <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #E2E8F0' }}>
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#5E81F4', marginBottom: '16px', textAlign: 'left' }}>
               생존 확률 곡선 그래프
             </div>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={160}>
               <AreaChart data={data.survivalCurve}>
                 <XAxis dataKey="month" fontSize={12} />
                 <YAxis fontSize={12} domain={[0, 100]} />
@@ -197,30 +198,53 @@ function Prediction() {
             </ResponsiveContainer>
           </div>
 
-          {/* SHAP 기여도 */}
+          {/* SHAP 기여도 - height 220, barSize 20으로 축소 */}
           <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #E2E8F0' }}>
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#5E81F4', marginBottom: '16px', textAlign: 'left' }}>
               SHAP 기여도 막대 차트
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={data.shapData} layout="vertical" margin={{ left: 80, right: 120, top: 5, bottom: 5 }}>
-                <XAxis type="number" domain={[0, 60]} fontSize={12} hide />
-                <YAxis type="category" dataKey="name" fontSize={12} width={100} tick={{ textAnchor: 'start', dx: -100 }} />
-                <Tooltip formatter={(value, name, props) => [`기여도: ${value}% (${props.payload.label})`, '요인']} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {data.shapData.map((item, i) => (
-                    <Cell key={i} fill={item.color} />
-                  ))}
-                  <LabelList
-                    dataKey="value"
-                    position="right"
-                    formatter={(v, entry) => `${v}%`}
-                    style={{ fontSize: '11px', fontWeight: '600' }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={260}>
+  <BarChart data={data.shapData} layout="vertical" margin={{ left: 50, right: 80, top: 5, bottom: 5 }}>
+    <XAxis type="number" domain={[0, 60]} fontSize={12} hide />
+    <YAxis
+      type="category"
+      dataKey="name"
+      fontSize={12}
+      width={200}
+      tick={{ fill: '#475569', fontWeight: '600', textAnchor: 'start', dx: -200 }}
+      tickFormatter={(value) => value}
+    />
+    <Tooltip
+      formatter={(value, name, props) => [`기여도: ${value}% | ${props.payload.label}`, '요인']}
+      contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}
+    />
+    <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={40}>
+      {data.shapData.map((item, i) => (
+        <Cell key={i} fill={item.color} />
+      ))}
+      <LabelList
+        dataKey="value"
+        position="right"
+        formatter={(v) => `${v}%`}
+        style={{ fontSize: '13px', fontWeight: '700', fill: '#1E293B' }}
+      />
+    </Bar>
+  </BarChart>
+</ResponsiveContainer>
+
+            {/* 범례 */}
+            <div style={{ display: 'flex', gap: '16px', marginTop: '12px', paddingLeft: '10px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748B' }}>
+                <span style={{ width: '12px', height: '12px', background: '#EF4444', borderRadius: '3px', display: 'inline-block' }}></span>
+                위험 요인
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748B' }}>
+                <span style={{ width: '12px', height: '12px', background: '#3B82F6', borderRadius: '3px', display: 'inline-block' }}></span>
+                완화 요인
+              </span>
+            </div>
           </div>
+
         </div>
       </div>
     </div>
