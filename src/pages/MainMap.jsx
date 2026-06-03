@@ -1,10 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Sidebar from '../components/Sidebar'
+import { MapContainer, TileLayer, Rectangle, Tooltip, useMap } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import { MOCK_BLOCKS, BLOCKS_BY_DISTRICT } from '../data/blocks'
 
-import { MOCK_BLOCKS } from '../data/blocks'
-
-// CSI 점수에 따라 색상 반환
 const getColor = (csi) => {
   if (csi >= 8) return '#3B82F6'
   if (csi >= 6) return '#22C55E'
@@ -13,14 +12,49 @@ const getColor = (csi) => {
   return '#EF4444'
 }
 
+function MoveToLocation({ query, onMove }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!query) return
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' 서울')}&format=json&limit=1`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.length > 0) {
+          const lat = parseFloat(data[0].lat)
+          const lon = parseFloat(data[0].lon)
+          map.setView([lat, lon], 14)
+          onMove(lat, lon, query)
+        }
+      })
+  }, [query])
+  return null
+}
+
 function MainMap() {
   const [selectedBlock, setSelectedBlock] = useState(MOCK_BLOCKS[9])
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [baseCoord, setBaseCoord] = useState({ lat: 37.5537, lon: 126.9236 })
+  const [blocks, setBlocks] = useState(MOCK_BLOCKS)
   const navigate = useNavigate()
 
+  const getDynamicCoords = (blockIndex, lat, lon) => {
+    const offsets = [
+      [0.002, 0.002], [0.002, -0.002], [-0.002, 0.002], [-0.002, -0.002],
+      [0.004, 0.004], [0.004, -0.004], [-0.004, 0.004], [-0.004, -0.004],
+      [0.006, 0.000], [-0.006, 0.000], [0.000, 0.006], [0.000, -0.006],
+      [0.006, 0.004], [-0.006, 0.004], [0.004, 0.006],
+    ]
+    const [dlat, dlon] = offsets[blockIndex]
+    return [
+      [lat + dlat, lon + dlon],
+      [lat + dlat + 0.003, lon + dlon + 0.003]
+    ]
+  }
+
   return (
-    
-    <div style={{ display: 'flex', height: '100vh', background: '#F8F9FA' }}>
-        <Sidebar />
+    <div style={{ display: 'flex', height: '100vh', background: '#F5F5FA' }}>
+
       {/* 왼쪽 사이드바 */}
       <div style={{
         width: '280px', background: 'white',
@@ -28,27 +62,25 @@ function MainMap() {
         display: 'flex', flexDirection: 'column',
         padding: '20px', overflow: 'hidden'
       }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', color: '#1E293B', textAlign: 'left' }}>
-          메인 지도 
+        <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1E293B', textAlign: 'left' }}>
+          메뉴 이름
         </h2>
 
-        {/* 블록 목록 - 스크롤 가능 */}
+        {/* 블록 목록 */}
         <div style={{
           border: '1px solid #E2E8F0', borderRadius: '12px',
           padding: '12px', marginBottom: '16px',
           flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '600'  }}>블록 목록</span>
+            <span style={{ fontSize: '14px', fontWeight: '600' }}>블록 목록</span>
             <span style={{
               background: '#EFF6FF', color: '#1D4ED8',
               fontSize: '11px', padding: '2px 8px', borderRadius: '20px'
-            }}>총 {MOCK_BLOCKS.length}개</span>
+            }}>총 {blocks.length}개</span>
           </div>
-
-          {/* 스크롤 영역 */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
-            {MOCK_BLOCKS.map(block => (
+            {[...blocks].sort((a, b) => b.csi - a.csi).map(block => (
               <div
                 key={block.id}
                 onClick={() => setSelectedBlock(block)}
@@ -73,12 +105,12 @@ function MainMap() {
         {/* 선택 블록 */}
         {selectedBlock && (
           <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px' }}>
-           <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-            <span style={{ fontSize: '14px', fontWeight: '600' }}>선택 목록</span>
+            <div style={{ marginBottom: '8px', textAlign: 'left' }}>
+              <span style={{ fontSize: '13px', color: '#64748B' }}>선택 블록</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '17px', fontWeight: '700', color: '#1E293B' }}>{selectedBlock.id} {selectedBlock.name}</span>
-            <span style={{ fontSize: '16px', fontWeight: '700', color: selectedBlock.color }}>{selectedBlock.csi}</span>
+              <span style={{ fontSize: '15px', fontWeight: '700', color: '#1E293B' }}>{selectedBlock.id} {selectedBlock.name}</span>
+              <span style={{ fontSize: '16px', fontWeight: '700', color: selectedBlock.color }}>{selectedBlock.csi}</span>
             </div>
             {[
               ['CSI 점수', `${selectedBlock.csi} / 10`],
@@ -112,7 +144,7 @@ function MainMap() {
         )}
       </div>
 
-      {/* 오른쪽 히트맵 */}
+      {/* 오른쪽 지도 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{
           padding: '12px 20px', background: 'white',
@@ -131,17 +163,32 @@ function MainMap() {
         }}>
           <input
             type="text"
-            placeholder="지역 또는 블록ID 검색..."
+            placeholder="구 이름 검색 후 Enter (예: 강남구)"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
             style={{
               flex: 1, maxWidth: '320px', padding: '8px 12px',
               border: '1px solid #E2E8F0', borderRadius: '8px',
               fontSize: '13px', outline: 'none'
             }}
           />
-          <select style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '13px' }}>
+          <select
+            onChange={(e) => {
+              const district = e.target.value
+              if (BLOCKS_BY_DISTRICT[district]) {
+                setBlocks(BLOCKS_BY_DISTRICT[district])
+                setSelectedBlock(BLOCKS_BY_DISTRICT[district][0])
+                setSearchQuery(district)
+              }
+            }}
+            style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '13px' }}
+          >
             <option>지역 전체</option>
-            <option>강남구</option>
             <option>마포구</option>
+            <option>강남구</option>
+            <option>종로구</option>
+            <option>용산구</option>
           </select>
           <select style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '13px' }}>
             <option>CSI 범위 전체</option>
@@ -153,54 +200,66 @@ function MainMap() {
           </select>
         </div>
 
-        {/* 히트맵 */}
-        <div style={{
-          flex: 1, background: '#EFF6FF',
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'center', position: 'relative', padding: '20px'
-        }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(9, 1fr)',
-            gap: '6px', width: '100%', maxWidth: '700px'
-          }}>
-            {MOCK_BLOCKS.map((block) => (
-              <div
-                key={block.id}
-                onClick={() => setSelectedBlock(block)}
-                style={{
-                  background: getColor(block.csi),
-                  borderRadius: '8px',
-                  height: '52px',
-                  opacity: 0.85,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  color: 'white',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  border: selectedBlock?.id === block.id ? '3px solid white' : '3px solid transparent'
-                }}
-              >
-                {block.id}
-              </div>
-            ))}
-          </div>
+        {/* 지도 */}
+        <div style={{ flex: 1, position: 'relative' }}>
+          <MapContainer
+            center={[37.5537, 126.9236]}
+            zoom={13}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; OpenStreetMap contributors'
+            />
+            <MoveToLocation
+              query={searchQuery}
+              onMove={(lat, lon, query) => {
+                setBaseCoord({ lat, lon })
+                const district = Object.keys(BLOCKS_BY_DISTRICT).find(d => query.includes(d))
+                if (district) {
+                  setBlocks(BLOCKS_BY_DISTRICT[district])
+                  setSelectedBlock(BLOCKS_BY_DISTRICT[district][0])
+                }
+              }}
+            />
+            {blocks.map((block, index) => {
+              const coords = getDynamicCoords(index, baseCoord.lat, baseCoord.lon)
+              return (
+               <Rectangle
+  key={`${block.id}-${index}-${baseCoord.lat}`}
+  bounds={coords}
+  pathOptions={{
+    color: selectedBlock?.id === block.id ? 'white' : getColor(block.csi),
+    fillColor: getColor(block.csi),
+    fillOpacity: 0.7,
+    weight: selectedBlock?.id === block.id ? 3 : 1
+  }}
+  eventHandlers={{
+    click: () => setSelectedBlock(block)
+  }}
+>
+  <Tooltip permanent direction="center" className="block-label">
+    <span style={{ fontWeight: '700', fontSize: '11px', color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>{block.id}<br />{block.csi}</span>
+  </Tooltip>
+</Rectangle>
+              )
+            })}
+          </MapContainer>
 
           {/* 범례 */}
           <div style={{
-            position: 'absolute', bottom: '16px', left: '20px',
+            position: 'absolute', bottom: '16px', left: '16px',
             background: 'white', borderRadius: '10px',
             padding: '8px 14px', border: '1px solid #E2E8F0',
-            display: 'flex', gap: '14px', fontSize: '11px'
+            display: 'flex', gap: '14px', fontSize: '11px',
+            zIndex: 1000
           }}>
             {[
-              ['#3B82F6', '최적 (8-10)'],
-              ['#22C55E', '안전 (6-8)'],
-              ['#EAB308', '주의 (4-6)'],
-              ['#F97316', '위험 (2-4)'],
-              ['#EF4444', '고위험 (0-2)'],
+              ['#3B82F6', '최적 8-10'],
+              ['#22C55E', '안전 6-8'],
+              ['#EAB308', '주의 4-6'],
+              ['#F97316', '위험 2-4'],
+              ['#EF4444', '고위험 0-2'],
             ].map(([color, label]) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ width: '10px', height: '10px', background: color, borderRadius: '2px', display: 'inline-block' }}></span>
