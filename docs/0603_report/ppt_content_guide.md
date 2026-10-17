@@ -67,9 +67,17 @@
 - **[공식 설계 (How)]**
   - 금융권의 FICO 신용 평점이나 Platt Scaling 방법론과 동일한 **Log-odds 기반의 Logistic Scaling 공식**을 설계.
   - **공식**:
-    $$\text{log\_odds} = \ln\left(\frac{p}{1-p}\right)$$
-    $$\text{Risk Score} = \text{Clip}\left(50 + 15 \times \text{log\_odds}, \ 0, \ 100\right)$$
+
+    $$
+    \text{log\_odds} = \ln\left(\frac{p}{1-p}\right)
+    $$
+
+    $$
+    \text{Risk Score} = \text{Clip}\left(50 + 15 \times \text{log\_odds}, \ 0, \ 100\right)
+    $$
+
   - 상권 평균 확률($p = 50.38\%$) 기준점을 **50점**으로 맵핑하고, 민감 계수를 15로 설정하여 극단값에서의 위험 구분을 정교화함.
+
 - **[실제 점포 케이스 매핑 수치 (Result)]**
   - **고위험 점포 (Danger)**: 모델 확률 94.76% $\rightarrow$ **위험 지수 93점**
   - **저위험 점포 (Safe)**: 모델 확률 19.29% $\rightarrow$ **위험 지수 29점**

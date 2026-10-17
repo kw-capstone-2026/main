@@ -69,8 +69,9 @@ def run_experiments():
     print(f"[Info] 원본 훈련 데이터 불균형 비율 (scale_pos_weight): {ratio:.2f}")
     
     samplers = {
-        'None': None,
-        'SMOTE': SMOTE(random_state=42),
+        'Baseline (완전 무처리, 가중치 1.0)': 'baseline',
+        'Cost-Sensitive (비용민감학습, scale_pos_weight)': 'cost_sensitive',
+        'SMOTE (오버샘플링)': SMOTE(random_state=42),
         'Random Under-sampling (RUS)': RandomUnderSampler(random_state=42),
         'SMOTE + RUS (Hybrid)': (
             SMOTE(sampling_strategy=0.1, random_state=42),
@@ -85,7 +86,10 @@ def run_experiments():
         print(f" 🧪 실험 중: 전처리 기법 = [{sampling_name}]")
         print(f"=========================================")
         
-        if sampler is None:
+        if sampler == 'baseline':
+            X_tr, y_tr = X_train, y_train
+            model_ratio = 1.0
+        elif sampler == 'cost_sensitive':
             X_tr, y_tr = X_train, y_train
             model_ratio = ratio
         elif isinstance(sampler, tuple):
@@ -150,7 +154,8 @@ def run_experiments():
     
     md_report = []
     md_report.append("# 📊 데이터 전처리(불균형 해결) 및 모델링 성능 비교 보고서\n")
-    md_report.append("본 보고서는 서울시 상권 3% 클래스 불균형 문제를 해결하기 위해 다양한 샘플링 기법(None, SMOTE, RUS, Hybrid)을 적용하고, XGBoost, LightGBM, 그리고 이 둘의 소프트 보팅 앙상블 모델에 대해 예측력을 평가한 결과입니다.\n")
+    md_report.append("본 보고서는 서울시 상권 3% 클래스 불균형 문제를 해결하기 위해 Baseline(무처리), 비용민감학습(scale_pos_weight), 샘플링 기법(SMOTE, RUS, Hybrid)을 적용하고, XGBoost, LightGBM, 그리고 이 둘의 소프트 보팅 앙상블 모델에 대해 예측력을 평가한 결과입니다.\n")
+    md_report.append("> F1-Score와 Accuracy는 결정 임계값 0.5 기준입니다.\n")
     md_report.append("| 전처리 기법 (Sampling) | 모델 구분 (Model) | ROC-AUC | PR-AUC (주 지표) | F1-Score | Accuracy |")
     md_report.append("| :--- | :--- | :---: | :---: | :---: | :---: |")
     
@@ -159,8 +164,8 @@ def run_experiments():
         
     md_report.append("\n## 💡 주요 분석 요약 (PPT 발표 참고자료)")
     md_report.append("1. **PR-AUC의 중요성**: 불균형 데이터셋(폐업 비율 3%) 특성상 Accuracy나 ROC-AUC는 모델이 다수 클래스만 맞춰도 높게 왜곡될 수 있으므로, 소수 클래스의 실질적 탐지력인 **PR-AUC (Precision-Recall AUC)**와 **소수 F1-Score**를 기준으로 모델을 평가해야 학술적인 설득력을 가집니다.")
-    md_report.append("2. **샘플링 기법 비교**: SMOTE 단독 적용 시 가상의 데이터 패턴이 과적합을 유발하여 PR-AUC가 소폭 하락할 수 있는 반면, **Hybrid (SMOTE + RUS)** 방식이나 **클래스 가중치(None + scale_pos_weight)** 방식이 상대적으로 높은 PR-AUC 점수를 기록하였습니다.")
-    md_report.append("3. **앙상블의 강건성**: 모든 샘플링 기법에서 단일 모델보다 **Soft Voting 앙상블 (XGB 0.3 : LGB 0.7)** 모델이 PR-AUC 및 F1-Score 측면에서 더 강건하고 뛰어난 성능을 일관되게 보여주었습니다.")
+    md_report.append("2. **불균형 처리 기법 비교**: SMOTE 단독 적용 시 가상의 데이터 패턴이 과적합을 유발하여 PR-AUC가 하락하는 반면, 원본 분포를 유지하는 **Baseline**과 **비용민감학습(scale_pos_weight)**이 높은 PR-AUC를 기록하였습니다. 단, Baseline은 임계값 0.5에서 소수 클래스를 거의 예측하지 못해 F1이 낮으므로, PR-AUC를 유지하면서 F1을 크게 개선한 **비용민감학습**이 실질적인 최적 조합입니다.")
+    md_report.append("3. **앙상블의 강건성**: Baseline·비용민감학습 조건에서 **Soft Voting 앙상블 (XGB 0.3 : LGB 0.7)**이 PR-AUC 최고점을 기록했으며, 다른 샘플링 조건에서도 단일 모델 대비 큰 성능 저하 없이 안정적인 결과를 보였습니다.")
     
     out_dir = 'docs/0603_report'
     os.makedirs(out_dir, exist_ok=True)

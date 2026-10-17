@@ -86,4 +86,5 @@ agenttest/
 # Transfer & Backup Packages
 # ══════════════════════════════════
 kw_capstone_transfer_package/
+*.zip
 
