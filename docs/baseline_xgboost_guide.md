@@ -30,10 +30,11 @@
 팀원들이 준 개별 데이터셋을 하나의 마스터 테이블로 합칩니다.
 
 ```powershell
-python src/feature_merger.py
+python src/density_feature_builder.py
 ```
 
-- **결과:** 타입 교정 및 결측치가 처리된 통합 파케이 파일이 생성됨.
+- **결과:** v4 통합 파케이에 Density/Ratio 파생 변수를 추가한 v5 파케이 파일이 생성됨.
+- 참고: `src/feature_merger.py`는 `main.py`에서 import하는 `FeatureMerger` 클래스/`merge_macro_features` 모듈입니다 (직접 실행용 아님).
 
 ### 2단계: 베이스라인 모델 학습 및 평가
 

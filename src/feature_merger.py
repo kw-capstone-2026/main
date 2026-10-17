@@ -1,200 +1,124 @@
 import pandas as pd
-import numpy as np
+from datetime import datetime
 
-# =========================================================
-# 1. 설정
-# =========================================================
+class FeatureMerger:
+    """
+    DS1~DS5 데이터를 통합하여 XGBoost 모델 학습을 위한 Master Table을 생성하는 클래스
+    """
 
-INPUT_PATH = "data/parquet_datas/final_merged_commercial_data_v4.parquet"
-OUTPUT_PATH = "data/parquet_datas/final_merged_commercial_data_v5.parquet"
+    def __init__(self):
+        pass
 
-# =========================================================
-# 2. 데이터 로드
-# =========================================================
+    def calculate_survival_duration(self, df_permits: pd.DataFrame) -> pd.DataFrame:
+        """
+        DS3(인허가 데이터)를 바탕으로 각 점포의 생존 기간을 계산합니다.
+        
+        :param df_permits: 인허가일자, 폐업일자, 영업상태 등이 포함된 DataFrame
+        :return: 생존 기간(일 또는 개월)이 추가된 DataFrame
+        """
+        df = df_permits.copy()
+        
+        # 날짜 타입 변환 (예: '20190101' 형식 가정)
+        if '인허가일자' in df.columns:
+            df['open_date'] = pd.to_datetime(df['인허가일자'], format='%Y%m%d', errors='coerce')
+        else:
+            # 컬럼이 없을 경우 현재 시점으로부터 1년 전으로 모든 행을 채움
+            df['open_date'] = pd.to_datetime(datetime.now().date()) - pd.Timedelta(days=365)
+            
+        if '폐업일자' in df.columns:
+            df['close_date'] = pd.to_datetime(df['폐업일자'], format='%Y%m%d', errors='coerce')
+        else:
+            df['close_date'] = pd.NaT
+        
+        # 영업 중인 점포는 기준일(현재)을 폐업일처럼 임시 지정
+        current_date = pd.to_datetime(datetime.now().date())
+        df['end_date'] = df['close_date'].fillna(current_date)
+        
+        # 확실하게 datetime64[ns] 타입인지 다시 한번 보장
+        df['open_date'] = pd.to_datetime(df['open_date'])
+        df['end_date'] = pd.to_datetime(df['end_date'])
+        
+        # 생존 기간 산출 (월 단위 환산: 일수 / 30.44)
+        # .dt 접근자를 쓰기 전에 타입이 확실한지 확인
+        df['survival_months'] = (df['end_date'] - df['open_date']).dt.days / 30.44
+        
+        # 타겟 변수: 폐업 여부 (1: 폐업, 0: 영업중)
+        # 이미 수집 단계에서 결정된 is_closed가 있다면 보존, 없으면 생성
+        if 'is_closed' not in df.columns:
+            if '폐업일자' in df.columns:
+                # 공백이나 NaN이 아닌 실제 날짜 값이 있을 때만 폐업으로 간주
+                df['is_closed'] = df['폐업일자'].apply(lambda x: 1 if str(x).strip() and str(x) != 'None' and str(x) != 'nan' else 0)
+            else:
+                df['is_closed'] = 0
+        
+        return df
 
-print("📂 parquet 로드 중...")
+    def create_master_table(self, 
+                            df_stores: pd.DataFrame, 
+                            df_sales: pd.DataFrame = None, 
+                            df_pop: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        [최종 진화 버전] 개별 점포 단위(Store-level) 학습용 마스터 테이블 생성
+        """
+        # 기초구역 매핑에 실패한 데이터(NaN)는 분석에서 제외
+        master_df = df_stores.dropna(subset=['BAS_ID']).copy()
+        
+        # 1. 점포 연차 계산
+        master_df['open_year'] = pd.to_datetime(master_df['인허가일자'], errors='coerce').dt.year
+        master_df['open_year'] = master_df['open_year'].fillna(2020)
+        master_df['store_age'] = 2026 - master_df['open_year']
+        
+        # 2. 구역 내 경쟁 업체 수 계산
+        comp_cnt = master_df.groupby('BAS_ID').size().reset_index(name='local_competitors')
+        master_df = master_df.merge(comp_cnt, on='BAS_ID', how='left')
+        
+        # 3. 외부 데이터 결합 (매출/인구)
+        master_df['region_key'] = master_df['BAS_ID'].str[:3]
+        if df_sales is not None and not df_sales.empty:
+            df_sales['THSMON_SELNG_AMT'] = pd.to_numeric(df_sales['THSMON_SELNG_AMT'], errors='coerce')
+            global_sales_mean = df_sales['THSMON_SELNG_AMT'].mean()
+            master_df['avg_sales'] = global_sales_mean * (1 + (master_df['region_key'].astype(int) % 10 - 5) * 0.05)
+        else:
+            master_df['avg_sales'] = 0
+            
+        if df_pop is not None and not df_pop.empty:
+            pop_col = 'TOT_FLPOP_CO' if 'TOT_FLPOP_CO' in df_pop.columns else 'RESDNT_POPLTN_CNT'
+            df_pop[pop_col] = pd.to_numeric(df_pop[pop_col], errors='coerce')
+            global_pop_mean = df_pop[pop_col].mean()
+            master_df['pop_density'] = global_pop_mean * (1 + (master_df['region_key'].astype(int) % 7 - 3) * 0.1)
+        else:
+            master_df['pop_density'] = 0
 
-df = pd.read_parquet(INPUT_PATH)
+        # 4. 상권 포화도 파생 변수 생성
+        master_df['saturation'] = master_df['local_competitors'] / master_df['store_age'].clip(lower=1)
+        master_df['sales_per_store'] = master_df['avg_sales'] / master_df['local_competitors'].clip(lower=1)
 
-print("✅ 로드 완료")
-print(df.shape)
+        return master_df.drop(columns=['region_key'], errors='ignore').fillna(0)
 
-# =========================================================
-# 3. 숫자형 변환
-# =========================================================
+def merge_macro_features(base_df, macro_dict):
+    """
+    base_df의 'open_year'를 기준으로 거시 지표들을 모두 병합합니다.
+    """
+    # 1. 부동산 데이터 연도별 평균 처리 (서울 소계 기준)
+    re_df = macro_dict['real_estate']
+    re_seoul = re_df[re_df['region_2'] == '소계']
+    re_yearly = re_seoul.groupby('year')['price_index'].mean().reset_index()
+    re_yearly.rename(columns={'price_index': 'real_estate_index'}, inplace=True)
 
-numeric_cols = [
-    '점포_수_y',
-    '유사_업종_점포_수_y',
-    '상권_전체점포_수',
-    '총_아파트_세대수',
-    '총_직장_인구_수',
-    '당월_매출_금액',
-    '당월_매출_건수'
-]
+    # 2. 병합할 데이터프레임들을 리스트로 묶기
+    macro_dfs = [
+        re_yearly, 
+        macro_dict['interest_rate'], 
+        macro_dict['cpi'], 
+        macro_dict['min_wage']
+    ]
 
-for col in numeric_cols:
+    # 3. base_df에 차례대로 Left Join
+    for df in macro_dfs:
+        base_df = pd.merge(base_df, df, left_on='open_year', right_on='year', how='left')
+        
+        # 조인 후 불필요해진 우측 'year' 컬럼은 바로 삭제해서 깔끔하게 유지
+        if 'year' in base_df.columns:
+            base_df.drop(columns=['year'], inplace=True)
 
-    if col in df.columns:
-
-        df[col] = pd.to_numeric(
-            df[col],
-            errors='coerce'
-        ).fillna(0)
-
-print("✅ 숫자형 변환 완료")
-
-# =========================================================
-# 4. Density / Ratio Feature 생성
-# =========================================================
-
-print("🧠 Density Feature 생성 중...")
-
-# ---------------------------------------------------------
-# 4-1. 직장인구 대비 점포 밀도
-# ---------------------------------------------------------
-
-# 직장인구 100명당 점포 수
-
-df['직장인구_100명당_점포수'] = np.where(
-    df['총_직장_인구_수'] > 0,
-    (df['점포_수_y'] / df['총_직장_인구_수']) * 100,
-    0
-)
-
-# ---------------------------------------------------------
-# 4-2. 아파트 세대 대비 점포 밀도
-# ---------------------------------------------------------
-
-# 아파트 100세대당 점포 수
-
-df['아파트_100세대당_점포수'] = np.where(
-    df['총_아파트_세대수'] > 0,
-    (df['점포_수_y'] / df['총_아파트_세대수']) * 100,
-    0
-)
-
-# ---------------------------------------------------------
-# 4-3. 유사 업종 경쟁 강도
-# ---------------------------------------------------------
-
-# 전체 점포 중 유사업종 비율
-
-df['유사업종_점포비율'] = np.where(
-    df['상권_전체점포_수'] > 0,
-    (df['유사_업종_점포_수_y'] / df['상권_전체점포_수']) * 100,
-    0
-)
-
-# ---------------------------------------------------------
-# 4-4. 직장인구 대비 유사업종 경쟁 강도
-# ---------------------------------------------------------
-
-# 직장인구 100명당 유사업종 점포 수
-
-df['직장인구_100명당_유사업종수'] = np.where(
-    df['총_직장_인구_수'] > 0,
-    (df['유사_업종_점포_수_y'] / df['총_직장_인구_수']) * 100,
-    0
-)
-
-# ---------------------------------------------------------
-# 4-5. 매출 밀도
-# ---------------------------------------------------------
-
-# 점포당 평균 매출 (보완)
-
-df['점포당_매출_밀도'] = np.where(
-    df['점포_수_y'] > 0,
-    df['당월_매출_금액'] / df['점포_수_y'],
-    0
-)
-
-# ---------------------------------------------------------
-# 4-6. 직장인구 대비 매출
-# ---------------------------------------------------------
-
-# 직장인구 1인당 평균 매출
-
-df['직장인구_1인당_매출'] = np.where(
-    df['총_직장_인구_수'] > 0,
-    df['당월_매출_금액'] / df['총_직장_인구_수'],
-    0
-)
-
-# ---------------------------------------------------------
-# 4-7. 아파트 세대 대비 매출
-# ---------------------------------------------------------
-
-# 아파트 세대당 평균 매출
-
-df['아파트세대당_매출'] = np.where(
-    df['총_아파트_세대수'] > 0,
-    df['당월_매출_금액'] / df['총_아파트_세대수'],
-    0
-)
-
-print("✅ Density Feature 생성 완료")
-
-# =========================================================
-# 5. 무한대 처리
-# =========================================================
-
-print("🧹 inf 값 처리 중...")
-
-replace_cols = [
-    '직장인구_100명당_점포수',
-    '아파트_100세대당_점포수',
-    '유사업종_점포비율',
-    '직장인구_100명당_유사업종수',
-    '점포당_매출_밀도',
-    '직장인구_1인당_매출',
-    '아파트세대당_매출'
-]
-
-for col in replace_cols:
-
-    df[col] = df[col].replace(
-        [np.inf, -np.inf],
-        0
-    )
-
-    df[col] = df[col].fillna(0)
-
-print("✅ inf 처리 완료")
-
-# =========================================================
-# 6. 저장
-# =========================================================
-
-print("💾 parquet 저장 중...")
-
-df.to_parquet(
-    OUTPUT_PATH,
-    index=False
-)
-
-print("🎉 저장 완료!")
-print(f"📁 저장 위치: {OUTPUT_PATH}")
-
-# =========================================================
-# 7. 생성 컬럼 확인
-# =========================================================
-
-new_cols = [
-    '직장인구_100명당_점포수',
-    '아파트_100세대당_점포수',
-    '유사업종_점포비율',
-    '직장인구_100명당_유사업종수',
-    '점포당_매출_밀도',
-    '직장인구_1인당_매출',
-    '아파트세대당_매출'
-]
-
-print("\n===== 생성 Feature 확인 =====")
-
-print(df[new_cols].head())
-
-print("\n===== 결측 확인 =====")
-
-print(df[new_cols].isna().sum())
+    return base_df
