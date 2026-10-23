@@ -56,6 +56,20 @@ cd backend/survival-api
 
 ---
 
+## SHAP 최종 표시명 적용
+
+새 DB는 `database/seed-ai-2024q4.sql.gz`에서 최종 표시명을 자동 적재합니다. 기존 DB는 프로젝트 루트에서 아래 SQL만 적용하면 됩니다. 피처명과 SHAP 수치, 사용자 계정은 유지합니다.
+
+```bash
+docker compose up -d --wait db
+docker compose cp database/migrations/002_finalize_shap_labels.sql db:/tmp/update_shap_labels.sql
+docker compose exec -T db sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/update_shap_labels.sql'
+```
+
+최종 32개 표시명은 [feature_labels_final.csv](../database/feature_labels_final.csv)에 있습니다. 초안 대비 9개를 수정했으며 현재 4분기 데이터의 대상은 64,216행입니다.
+
+---
+
 ## swagger
 
 ```bash

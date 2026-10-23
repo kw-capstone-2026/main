@@ -108,15 +108,25 @@ SHAP은 rank 순으로 5개 반환됩니다. 현재 로컬 DB에서 첫 번째 �
   "name": "전년_동기_대비_폐업_증감률",
   "shapValue": 1.3041,
   "featureValue": 1.5,
-  "label": "작년 같은 분기보다 폐업이 늘어난 정도"
+  "label": "작년 같은 분기 대비 폐업 증감"
 }
 ```
 
-- `label`: 화면에 표시할 설명. 현재 AI팀 초안입니다.
+- `label`: AI팀 최종 확정 표시명입니다. 32개 피처 모두 20자 이내이며 최대 17자입니다. 응답의 label을 화면에 그대로 사용합니다.
 - `featureValue`: 이유 옆에 표시할 실제 피처 값입니다. 원본 값이 그대로 들어갑니다.
 - `shapValue`: 모델 예측에 대한 기여도입니다. 이번 데이터에서는 양수가 위험을 높이는 방향, 음수가 낮추는 방향입니다.
 
-예를 들어 “작년 같은 분기보다 폐업이 늘어난 정도: 1.5”로 표시할 수 있습니다. featureValue의 단위는 피처마다 다르므로 일괄적으로 %, 개, 원을 붙이거나 100을 곱하지 않습니다. 피처별 단위·표시 자릿수는 AI팀과 맞춰 주세요.
+예를 들어 “작년 같은 분기 대비 폐업 증감: 1.5”로 표시할 수 있습니다. featureValue의 단위는 피처마다 다르므로 일괄적으로 %, 개, 원을 붙이거나 100을 곱하지 않습니다. 피처별 단위·표시 자릿수는 AI팀과 맞춰 주세요.
+
+피처명 `name`, `shapValue`, `featureValue`는 바뀌지 않았습니다. 최종 표시명은 [피처 표시명 사전](../database/feature_labels_final.csv)에 정리했습니다. “상권”으로 시작하는 표시명은 상권 단위 값입니다.
+
+새 DB에는 최종 표시명이 자동 적재됩니다. 기존 DB를 쓰는 팀원은 최신 코드를 받은 뒤 아래 SQL을 한 번 적용합니다. 전체 DB를 초기화할 필요 없이 표시명만 갱신합니다.
+
+```bash
+docker compose up -d --wait db
+docker compose cp database/migrations/002_finalize_shap_labels.sql db:/tmp/update_shap_labels.sql
+docker compose exec -T db sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/update_shap_labels.sql'
+```
 
 ## 6. 차트·빈 값 처리
 

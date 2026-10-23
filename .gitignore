@@ -52,6 +52,8 @@ Thumbs.db
 # 데이터 파일 (대용량 → Git 제외, 별도 공유)
 # ══════════════════════════════════
 *.csv
+# SHAP 최종 표시명 사전(학습 데이터가 아닌 32개 피처 메타데이터)
+!database/feature_labels_final.csv
 *.tsv
 *.xlsx
 *.parquet
