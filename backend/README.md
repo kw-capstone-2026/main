@@ -105,5 +105,5 @@ backend/survival-api/src/main/java/com/capstone/survival_api/
 ## CORS 허용 출처
 
 - `https://csi-platform.vercel.app` (프로덕션)
-- `http://localhost:5173` (로컬 개발)
+- `http://localhost:5174` (로컬 개발)
 - `http://localhost:3000`

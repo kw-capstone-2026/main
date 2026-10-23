@@ -8,16 +8,11 @@
 #   이 파일 하나로 팀원 전원이 동일한 환경을 자동으로 구성합니다.
 #
 # ✅ 사용법 (이것만 하면 됨):
-#   시작: docker compose up -d
+#   시작: docker compose up -d --build
 #   종료: docker compose down
 #   완전 초기화(데이터 삭제): docker compose down -v
 #
-# 📌 DB 접속 정보 (Spring Boot application.yml과 반드시 일치해야 함):
-#   Host:     localhost
-#   Port:     5432
-#   DB 이름:  survival_db
-#   아이디:   capstone_user
-#   비밀번호: capstone1234
+# DB 접속 정보와 JWT 키는 프로젝트 루트 .env에서만 가져옵니다.
 # ──────────────────────────────────────────────────────────────
 
 services:
@@ -30,9 +25,9 @@ services:
 
     # DB 환경변수 설정
     environment:
-      POSTGRES_DB: survival_db      # DB 이름
-      POSTGRES_USER: capstone_user  # 접속 아이디
-      POSTGRES_PASSWORD: capstone1234 # 접속 비밀번호
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set in .env}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
 
     # 포트: 내 컴퓨터 5432 → 컨테이너 내부 5432
     # (Spring Boot, Python 코드 전부 localhost:5432로 접속)
@@ -44,14 +39,16 @@ services:
     # docker compose down -v 하면 데이터 삭제됨 (초기화)
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # 아래 SQL 파일들은 DB 최초 실행 시 순서대로 자동 실행됩니다
-      # (MySQL에서 CREATE TABLE 직접 치던 것과 동일한 역할)
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      # 새 DB 볼륨에서 스키마 → 기본 계정/seed → AI 실데이터 순서로 자동 적용
+      # 기존 볼륨은 자동 재적재하지 않습니다.
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./database/seed-ai-2024q4.sql.gz:/docker-entrypoint-initdb.d/03-ai-2024q4.sql.gz:ro
 
     # DB 상태 확인 (backend가 뜨기 전에 DB가 준비됐는지 체크)
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U capstone_user -d survival_db"]
+      # 초기화용 임시 서버가 아닌, 실데이터 적재 후 시작한 TCP 서버를 확인
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -67,11 +64,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Docker 내부에서는 localhost 대신 서비스 이름 'db'로 접속
-      DB_URL: jdbc:postgresql://db:5432/survival_db
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      # Docker 내부용 URL도 .env에서 설정합니다.
+      DB_URL: ${DOCKER_DB_URL:?DOCKER_DB_URL must be set in .env}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be set in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
     depends_on:
       db:
         condition: service_healthy
