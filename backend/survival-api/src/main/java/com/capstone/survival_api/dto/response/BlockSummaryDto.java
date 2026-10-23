@@ -16,6 +16,7 @@ public class BlockSummaryDto {
     private String region;
     private BigDecimal csiScore;
     private String riskGrade;
+    private Integer riskScore;
     private BigDecimal lat;
     private BigDecimal lng;
 
@@ -27,6 +28,7 @@ public class BlockSummaryDto {
                 .region(block.getRegion())
                 .csiScore(block.getCsiScore())
                 .riskGrade(prediction != null ? prediction.getRiskGrade() : null)
+                .riskScore(prediction != null ? prediction.getRiskScore() : null)
                 .lat(block.getLat())
                 .lng(block.getLng())
                 .build();

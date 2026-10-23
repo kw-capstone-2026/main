@@ -19,6 +19,7 @@ public class ShapResponse {
         private Integer rank;
         private String name;
         private BigDecimal shapValue;
+        private BigDecimal featureValue;
         private String label;
 
         public static Feature from(ShapFeature shap) {
@@ -26,6 +27,7 @@ public class ShapResponse {
                     .rank(shap.getRank())
                     .name(shap.getName())
                     .shapValue(shap.getShapValue())
+                    .featureValue(shap.getFeatureValue())
                     .label(shap.getLabel())
                     .build();
         }

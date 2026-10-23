@@ -30,6 +30,9 @@ public class ShapFeature {
     @Column(nullable = false, precision = 8, scale = 4)
     private BigDecimal shapValue;
 
+    @Column(name = "feature_value", columnDefinition = "NUMERIC")
+    private BigDecimal featureValue;
+
     @Column(length = 200)
     private String label;
 }

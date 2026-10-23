@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS shap_features (
     rank        INTEGER      NOT NULL,
     name        VARCHAR(100) NOT NULL,
     shap_value  NUMERIC(8,4) NOT NULL,
+    feature_value NUMERIC,
     label       VARCHAR(200)
 );
 
