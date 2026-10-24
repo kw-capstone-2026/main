@@ -5,9 +5,9 @@
 
 | 단계 | 항목 | 결과 | 내용 |
 |---|---|---|---|
-| 공통 | 필수 결과 파일 존재 | 통과 | 18개 |
-| 공통 | 모든 CSV가 utf-8-sig(BOM) | 통과 | 9개 |
-| 공통 | scripts_final 번호 스크립트 00~10 | 통과 | 00_check_env.py, 01_load_and_inspect.py, 02_predict.py, 03_validate.py, 04_risk_score.py, 05_shap_top5.py, 06_build_master.py, 07_demo_candidates.py, 08_label_leakage_check.py, 09_ablation_no_closure.py, 10_verify_handoff.py |
+| 공통 | 필수 결과 파일 존재 | 통과 | 21개 |
+| 공통 | 모든 CSV가 utf-8-sig(BOM) | 통과 | 11개 |
+| 공통 | scripts_final 번호 스크립트 00~11 | 통과 | 00_check_env.py, 01_load_and_inspect.py, 02_predict.py, 03_validate.py, 04_risk_score.py, 05_shap_top5.py, 06_build_master.py, 07_demo_candidates.py, 08_label_leakage_check.py, 09_ablation_no_closure.py, 10_verify_handoff.py, 11_feature_value_format.py |
 | 공통 | 실행 로그에 오류 없음 | 통과 |  |
 | 0 환경 | 필수 패키지 6개 설치 | 통과 | pandas 3.0.6, pyarrow 26.0.0, xgboost 3.2.0, lightgbm 4.7.0, shap 0.54.1, scikit-learn 1.9.1 |
 | 0 환경 | xgboost가 모델 저장 버전(3.2.0)과 같음 | 통과 |  |
@@ -58,4 +58,4 @@
 | 인수인계 | (e) HANDOFF: 예시 행 | 통과 |  |
 | 규칙 | 결과 문서에 API 키 형태 문자열 없음 | 통과 | [] |
 | 규칙 | 스크립트가 .env를 열지 않음 | 통과 |  |
-| 규칙 | 기존(추적 중) 파일 수정 없음 | 통과 |  |
+| 규칙 | 원래 프로젝트 파일 수정 없음 (결과물 폴더 output/, scripts_final/, handoff_output/ 제외) | 통과 |  |

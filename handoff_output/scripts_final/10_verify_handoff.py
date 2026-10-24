@@ -32,14 +32,14 @@ feature_cols = load_feature_cols()
 need = ['parquet_columns.txt', 'model_metrics.md', 'model_metrics.json', 'master_2024.csv', 'shap_top5_2024_q4.csv',
         'shap_top5_2024_q1_q3.csv', 'feature_labels_draft.csv', 'demo_candidates.csv', 'HOW_TO_REPRODUCE.md',
         'HANDOFF.md', 'run_log.txt', 'requirements_used.txt', 'demo_final_blocks.csv', 'risk_grade_calibration.md',
-        'label_check.md', 'shap_importance_2024.csv', 'ablation_no_closure.md', 'ablation_no_closure.json']
+        'label_check.md', 'shap_importance_2024.csv', 'ablation_no_closure.md', 'ablation_no_closure.json', 'feature_value_format.csv', 'feature_value_format.md', 'feature_labels_final.csv']
 missing = [f for f in need if not os.path.exists(os.path.join(OUT_DIR, f))]
 check('공통', '필수 결과 파일 존재', not missing, f'누락: {missing}' if missing else f'{len(need)}개')
 csvs = sorted(f for f in os.listdir(OUT_DIR) if f.endswith('.csv'))
 no_bom = [f for f in csvs if open(os.path.join(OUT_DIR, f), 'rb').read(3) != b'\xef\xbb\xbf']
 check('공통', '모든 CSV가 utf-8-sig(BOM)', not no_bom, f'{len(csvs)}개' if not no_bom else f'BOM 없음: {no_bom}')
 scripts = sorted(f for f in os.listdir(os.path.join(ROOT, 'scripts_final')) if re.match(r'\d\d_.*\.py$', f))
-check('공통', 'scripts_final 번호 스크립트 00~10', len(scripts) == 11, ', '.join(scripts))
+check('공통', 'scripts_final 번호 스크립트 00~11', len(scripts) == 12, ', '.join(scripts))
 log = open(LOG_PATH, encoding='utf-8').read()
 check('공통', '실행 로그에 오류 없음', 'Traceback' not in log and '[중단]' not in log)
 
@@ -148,8 +148,9 @@ src = ''.join(open(os.path.join(ROOT, 'scripts_final', f), encoding='utf-8').rea
               for f in os.listdir(os.path.join(ROOT, 'scripts_final')) if f.endswith('.py') and f != me)
 check('규칙', '스크립트가 .env를 열지 않음', "'.env'" not in src and '".env"' not in src)
 st = subprocess.run(['git', 'status', '--porcelain'], cwd=ROOT, capture_output=True, text=True, encoding='utf-8').stdout
-changed = [l for l in st.splitlines() if not l.startswith('??')]
-check('규칙', '기존(추적 중) 파일 수정 없음', not changed, '; '.join(changed[:5]))
+# 우리가 만든 결과물 폴더(output/, scripts_final/, handoff_output/)는 git에 올라간 뒤 다시 갱신될 수 있으므로 제외
+changed = [l for l in st.splitlines() if not l.startswith('??') and not l[3:].startswith(('output/', 'scripts_final/', 'handoff_output/'))]
+check('규칙', '원래 프로젝트 파일 수정 없음 (결과물 폴더 output/, scripts_final/, handoff_output/ 제외)', not changed, '; '.join(changed[:5]))
 
 # ── 보고서 ──
 n_ok = sum(r[2] for r in results)

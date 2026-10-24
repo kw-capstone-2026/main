@@ -77,6 +77,8 @@
 | `parquet_columns.txt`, `requirements_used.txt`, `run_log.txt` | - | 원본 열 목록, 패키지 버전, 실행 로그 | 기록용 |
 | `HOW_TO_REPRODUCE.md` | - | 처음부터 다시 만드는 방법 | 재실행 시 |
 | `verification_report.md` | - | 작업 요구사항 자동 점검 결과 (전부 통과) | 확인용 |
+| `feature_value_format.csv` / `.md` | 32 / - | SHAP 실제 값(featureValue) 화면 표시 기준표와 프론트용 표시 함수 | 프론트 |
+| `feature_labels_final.csv` | 32 | SHAP 표시명 확정본 (백엔드 `database/feature_labels_final.csv`와 같은 파일) | 화면·포스터 |
 | `_intermediate/` | - | 스크립트끼리 주고받는 중간 파일 | **안 봐도 됨** |
 
 ### 2-1. `master_2024.csv`

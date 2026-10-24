@@ -33,7 +33,8 @@ $PY = "E:\capstone\.venv_final\Scripts\python.exe"
 & $PY scripts_final\07_demo_candidates.py  # 확정 시연 블록 3개 + 예비 후보 30개 + 같은 업종 시나리오 15개
 & $PY scripts_final\08_label_leakage_check.py  # 정답·누수 점검 → label_check.md (라벨은 바꾸지 않음)
 & $PY scripts_final\09_ablation_no_closure.py  # 폐업 변수를 뺀 비교 재학습 → ablation_no_closure.md (약 1~2분, 시연 결과는 안 바뀜)
-& $PY scripts_final\10_verify_handoff.py  # 작업 요구사항 자동 점검 → verification_report.md
+& $PY scripts_final\11_feature_value_format.py  # 화면 표시 기준표 → feature_value_format.csv / .md
+& $PY scripts_final\10_verify_handoff.py  # 작업 요구사항 자동 점검 → verification_report.md (항상 맨 마지막에 실행)
 ```
 
 - 전체 소요 시간: 약 3분 (SHAP, 비교 재학습 포함)
