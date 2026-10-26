@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, Cell, LabelList, XAxis, YAxis, Tooltip } from 'recharts'
 import Sidebar from '../components/Sidebar'
 
-// SHAP featureValue 9가지 단위 포맷팅 및 한글 지표명 fallback 대응 (문서 기준 반영)
+// SHAP featureValue 단위 포맷팅 및 한글 지표명 fallback 대응
 const FORMAT_MAP = {
   '당월_매출_금액': ['won', ''],
   '당월_매출_건수': ['count', '건'],
@@ -96,9 +96,9 @@ function formatFeatureValue(name, v) {
       return num >= 1e4 ? `${(num / 1e4).toFixed(1)}만 명` : `${comma(num)}명`
     case 'avg': return `${num.toFixed(1)}개`
     case 'pct': return `${num.toFixed(1)}%`
-    case 'share': return `${(num * 100).toFixed(1)}%`
+    case 'share': return `${num.toFixed(1)}%`
     case 'per100': return `${num.toFixed(2)}개`
-    case 'density': return `점포 100개당 ${(num * 100).toFixed(1)}개`
+    case 'density': return `${num.toFixed(1)}개`
     case 'months': return `${Math.round(num)}개월`
     case 'code': return `${Math.trunc(num)}구간`
     case 'yoy': {
@@ -130,10 +130,10 @@ function Prediction() {
       
       let currentId = blockId
       if (!currentId || currentId === 'undefined' || currentId === 'null' || isNaN(Number(currentId))) {
-        currentId = '5'
+        currentId = '1' 
       }
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+      const baseUrl = ''
 
       try {
         const [blockRes, predRes, shapRes] = await Promise.all([
@@ -150,25 +150,36 @@ function Prediction() {
         if (predRes && predRes.ok) predInfo = await predRes.json()
         if (shapRes && shapRes.ok) shapInfo = await shapRes.json()
 
-        const blockName = blockInfo?.name || predInfo?.blockName || '합정역 상권'
-        const industry = blockInfo?.mainIndustry || '음식점'
-        const riskScore = predInfo?.riskScore ?? predInfo?.risk_score ?? blockInfo?.riskScore ?? 60
-        const riskGrade = predInfo?.riskGrade || predInfo?.risk_grade || blockInfo?.riskGrade || '주의'
-        const closureRate = predInfo?.closureRate ?? predInfo?.closure_rate ?? 8.2
-        const openRate = predInfo?.openRate ?? predInfo?.open_rate ?? 7.1
+        // ID별 팀원 공지 기준 시연 데이터 정확히 매칭 (1: 경리단길 80위험, 2: 연남동 57주의, 3: 성수역 19안전)
+        let defaultName = '경리단길북측'
+        let defaultScore = 80
+        let defaultGrade = '위험'
+
+        if (String(currentId) === '2') {
+          defaultName = '연남동(홍대)'
+          defaultScore = 57
+          defaultGrade = '주의'
+        } else if (String(currentId) === '3') {
+          defaultName = '성수역'
+          defaultScore = 19
+          defaultGrade = '안전'
+        }
+
+        const blockName = blockInfo?.name || predInfo?.blockName || defaultName
+        const industry = blockInfo?.mainIndustry || '커피-음료'
+        const riskScore = predInfo?.riskScore ?? predInfo?.risk_score ?? blockInfo?.riskScore ?? defaultScore
+        const riskGrade = predInfo?.riskGrade || predInfo?.risk_grade || blockInfo?.riskGrade || defaultGrade
+        const closureRate = predInfo?.closureRate ?? predInfo?.closure_rate ?? 6.5
+        const openRate = predInfo?.openRate ?? predInfo?.open_rate ?? 8.8
 
         const gradeStyle = getGradeStyle(riskGrade, riskScore)
         const rawFeatures = shapInfo?.features || (Array.isArray(shapInfo) ? shapInfo : [])
 
         const formattedShap = rawFeatures.map((item, idx) => {
-          
-          console.log(`백엔드 원본 item [${idx}] 데이터:`, item)
-
           const rawName = item?.feature_name || item?.featureName || item?.label || item?.name || item?.rawName || ''
           const displayName = item?.label || item?.name || item?.feature_name || `지표 ${idx + 1}`
           
-          // 가능한 모든 변수명을 전부 체크하도록 방어코드 강화
-          const rawVal = item?.shapValue ?? item?.shap_value ?? item?.value ?? item?.shap ?? item?.score ?? item?.contribution ?? 0
+          const rawVal = item?.shapValue ?? item?.shap_value ?? item?.value ?? item?.importance ?? 0
           const val = !isNaN(Number(rawVal)) ? Number(Number(rawVal).toFixed(3)) : 0
 
           const rawActualVal = item?.feature_value ?? item?.featureValue ?? item?.value ?? item?.actual_value
@@ -297,7 +308,7 @@ function Prediction() {
             {data.shapData && data.shapData.length > 0 ? (
               <div style={{ width: '100%', height: '320px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.shapData} layout="vertical" margin={{ left: 80, right: 180, top: 10, bottom: 10 }}>
+                  <BarChart data={data.shapData} layout="vertical" margin={{ left: 80, right: 200, top: 10, bottom: 10 }}>
                     <XAxis type="number" fontSize={12} hide />
                     <YAxis type="category" dataKey="name" fontSize={12} width={180} tick={{ fill: '#475569', fontWeight: '600' }} />
                     <Tooltip
@@ -311,33 +322,21 @@ function Prediction() {
                       dataKey="absVal" 
                       radius={[0, 6, 6, 0]} 
                       barSize={32}
-                      content={(props) => {
-                        const { x, y, width, height, index } = props
-                        const item = data.shapData[index]
-                        if (!item) return null
-
-                        const valText = `${item.value > 0 ? '+' : ''}${item.value} (실제: ${item.actualValue})`
-
-                        return (
-                          <g>
-                            <rect x={x} y={y} width={width} height={height} fill={item.color} rx={6} ry={6} />
-                            <text
-                              x={x + width + 8}
-                              y={y + height / 2}
-                              fill="#1E293B"
-                              fontSize={12}
-                              fontWeight={700}
-                              dominantBaseline="middle"
-                            >
-                              {valText}
-                            </text>
-                          </g>
-                        )
-                      }}
+                      isAnimationActive={false}
                     >
                       {data.shapData.map((item, i) => (
                         <Cell key={i} fill={item.color} />
                       ))}
+                      <LabelList
+                        dataKey="absVal"
+                        position="right"
+                        formatter={(v, entry) => {
+                          const val = entry?.payload?.value ?? 0
+                          const actual = entry?.payload?.actualValue ?? '-'
+                          return `${val > 0 ? '+' : ''}${val} (실제: ${actual})`
+                        }}
+                        style={{ fontSize: '11px', fontWeight: '700', fill: '#1E293B' }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
