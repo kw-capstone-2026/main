@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ResponsiveContainer, BarChart, Bar, Cell, LabelList, XAxis, YAxis, Tooltip } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip } from 'recharts'
 import Sidebar from '../components/Sidebar'
 
-// SHAP featureValue 9가지 단위 포맷팅 및 한글 지표명 fallback 대응
+// SHAP featureValue 9가지 단위 포맷팅 및 한글 지표명 fallback 대응 (문서 기준 반영)
 const FORMAT_MAP = {
-  // DB 컬럼명 매핑
   '당월_매출_금액': ['won', ''],
   '당월_매출_건수': ['count', '건'],
   '점포_수_y': ['avg', '개'],
@@ -16,7 +15,7 @@ const FORMAT_MAP = {
   '프랜차이즈점포비율(%)': ['pct', '%'],
   '개인점포비율(%)': ['pct', '%'],
   '상권_전체점포_수': ['count', '개'],
-  '상권 내부 업종 점유율(%)': ['pct', '%'],
+  '상권 내부 업종 점유율(%)': ['share', '%'],
   '운영_영업_개월_평균': ['months', '개월'],
   '폐업_영업_개월_평균': ['months', '개월'],
   '유효_수요_전환율': ['index', ''],
@@ -53,7 +52,9 @@ const FORMAT_MAP = {
   '점포당 평균 매출': ['won', ''],
   '이번 분기 매출액': ['won', ''],
   '상권 평균 폐업률': ['pct', '%'],
-  '주변 집객시설 밀집도': ['density', '개']
+  '주변 집객시설 밀집도': ['density', '개'],
+  '작년 같은 분기 대비 폐업 증감': ['yoy', ''],
+  '상권 운영 점포 평균 영업기간': ['months', '개월']
 }
 
 const ZERO_MISSING = {
@@ -67,7 +68,6 @@ const ZERO_MISSING = {
 
 function formatFeatureValue(name, v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) {
-    // 값이 넘어오지 않았을 때 한글 지표명에 따른 시연용 기본값 제공
     if (name.includes('지하철')) return '250m'
     if (name.includes('유동인구')) return '1.2만 명/일'
     if (name.includes('점포 연령') || name.includes('영업')) return '48개월'
@@ -150,24 +150,28 @@ function Prediction() {
         if (predRes && predRes.ok) predInfo = await predRes.json()
         if (shapRes && shapRes.ok) shapInfo = await shapRes.json()
 
-        const blockName = blockInfo?.name || predInfo?.blockName || '상수동 카페거리'
-        const industry = blockInfo?.mainIndustry || '카페'
-        const riskScore = predInfo?.riskScore ?? predInfo?.risk_score ?? blockInfo?.riskScore ?? 30
-        const riskGrade = predInfo?.riskGrade || predInfo?.risk_grade || blockInfo?.riskGrade || '안전'
-        const closureRate = predInfo?.closureRate ?? predInfo?.closure_rate ?? 4.2
-        const openRate = predInfo?.openRate ?? predInfo?.open_rate ?? 9.2
+        const blockName = blockInfo?.name || predInfo?.blockName || '합정역 상권'
+        const industry = blockInfo?.mainIndustry || '음식점'
+        const riskScore = predInfo?.riskScore ?? predInfo?.risk_score ?? blockInfo?.riskScore ?? 60
+        const riskGrade = predInfo?.riskGrade || predInfo?.risk_grade || blockInfo?.riskGrade || '주의'
+        const closureRate = predInfo?.closureRate ?? predInfo?.closure_rate ?? 8.2
+        const openRate = predInfo?.openRate ?? predInfo?.open_rate ?? 7.1
 
         const gradeStyle = getGradeStyle(riskGrade, riskScore)
         const rawFeatures = shapInfo?.features || (Array.isArray(shapInfo) ? shapInfo : [])
 
         const formattedShap = rawFeatures.map((item, idx) => {
+          
+          console.log(`백엔드 원본 item [${idx}] 데이터:`, item)
+
           const rawName = item?.feature_name || item?.featureName || item?.label || item?.name || item?.rawName || ''
           const displayName = item?.label || item?.name || item?.feature_name || `지표 ${idx + 1}`
-          const val = typeof item?.shapValue === 'number' 
-            ? Number(item.shapValue.toFixed(3)) 
-            : (typeof item?.shap_value === 'number' ? Number(item.shap_value.toFixed(3)) : 0)
+          
+          // 가능한 모든 변수명을 전부 체크하도록 방어코드 강화
+          const rawVal = item?.shapValue ?? item?.shap_value ?? item?.value ?? item?.shap ?? item?.score ?? item?.contribution ?? 0
+          const val = !isNaN(Number(rawVal)) ? Number(Number(rawVal).toFixed(3)) : 0
 
-          const rawActualVal = item?.feature_value ?? item?.featureValue ?? item?.value
+          const rawActualVal = item?.feature_value ?? item?.featureValue ?? item?.value ?? item?.actual_value
           const formattedActual = formatFeatureValue(rawName, rawActualVal)
 
           return {
@@ -303,19 +307,37 @@ function Prediction() {
                       ]}
                       contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}
                     />
-                    <Bar dataKey="absVal" radius={[0, 6, 6, 0]} barSize={32}>
+                    <Bar 
+                      dataKey="absVal" 
+                      radius={[0, 6, 6, 0]} 
+                      barSize={32}
+                      content={(props) => {
+                        const { x, y, width, height, index } = props
+                        const item = data.shapData[index]
+                        if (!item) return null
+
+                        const valText = `${item.value > 0 ? '+' : ''}${item.value} (실제: ${item.actualValue})`
+
+                        return (
+                          <g>
+                            <rect x={x} y={y} width={width} height={height} fill={item.color} rx={6} ry={6} />
+                            <text
+                              x={x + width + 8}
+                              y={y + height / 2}
+                              fill="#1E293B"
+                              fontSize={12}
+                              fontWeight={700}
+                              dominantBaseline="middle"
+                            >
+                              {valText}
+                            </text>
+                          </g>
+                        )
+                      }}
+                    >
                       {data.shapData.map((item, i) => (
                         <Cell key={i} fill={item.color} />
                       ))}
-                      <LabelList
-                        dataKey="actualValue"
-                        position="right"
-                        formatter={(v, entry) => {
-                          const val = entry?.payload?.value ?? 0
-                          return `${val > 0 ? '+' : ''}${val} (실제: ${v || '-'})`
-                        }}
-                        style={{ fontSize: '12px', fontWeight: '700', fill: '#1E293B' }}
-                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
