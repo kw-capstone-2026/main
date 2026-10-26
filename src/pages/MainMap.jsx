@@ -4,51 +4,45 @@ import { MapContainer, TileLayer, Rectangle, Tooltip, useMap } from 'react-leafl
 import 'leaflet/dist/leaflet.css'
 import Sidebar from '../components/Sidebar'
 
-// 1. 위험도 3단계 색상 매핑 (안전/주의/위험)
-const getRiskColor = (riskGrade) => {
-  switch (riskGrade) {
-    case '안전':
-      return '#22C55E' // 초록
-    case '주의':
-      return '#EAB308' // 노랑
-    case '위험':
-      return '#EF4444' // 빨강
-    default:
-      return '#94A3B8'
-  }
+const getRiskColor = (riskGrade, riskScore) => {
+  if (riskScore >= 75 || riskGrade === '위험') return '#EF4444'
+  if (riskScore >= 50 || riskGrade === '주의') return '#EAB308'
+  return '#22C55E'
 }
 
-// 시연 3개 블록 포함 기본 테스트 데이터 구조
-const INITIAL_BLOCKS = [
+const FALLBACK_BLOCKS = [
   {
-    block_id: 'B01',
-    block_name: '연남동(홍대)',
-    region: '마포구 연남동',
-    industry: '커피-음료',
-    risk_grade: '안전',
-    risk_score: 82,
-    population: '평일 7만명/일',
-    stores: '85개'
+    id: 1,
+    basId: '3110084_CS100010',
+    name: '경리단길북측 · 커피-음료',
+    region: '골목상권',
+    mainIndustry: '커피-음료',
+    riskGrade: '위험',
+    riskScore: 80,
+    lat: 37.541737,
+    lng: 126.99136
   },
   {
-    block_id: 'B02',
-    block_name: '경리단길북측',
-    region: '용산구 이태원동',
-    industry: '커피-음료',
-    risk_grade: '주의',
-    risk_score: 54,
-    population: '평일 3만명/일',
-    stores: '42개'
+    id: 2,
+    basId: '3120052_CS100010',
+    name: '연남동(홍대) · 커피-음료',
+    region: '발달상권',
+    mainIndustry: '커피-음료',
+    riskGrade: '주의',
+    riskScore: 57,
+    lat: 37.562145,
+    lng: 126.923485
   },
   {
-    block_id: 'B03',
-    block_name: '성수역',
-    region: '성동구 성수동',
-    industry: '커피-음료',
-    risk_grade: '위험',
-    risk_score: 28,
-    population: '평일 9만명/일',
-    stores: '120개'
+    id: 3,
+    basId: '3120053_CS100010',
+    name: '성수역 · 커피-음료',
+    region: '발달상권',
+    mainIndustry: '커피-음료',
+    riskGrade: '안전',
+    riskScore: 19,
+    lat: 37.544581,
+    lng: 127.055961
   }
 ]
 
@@ -66,67 +60,112 @@ function MoveToLocation({ query, onMove }) {
           onMove(lat, lon)
         }
       })
+      .catch(() => {})
   }, [query])
   return null
 }
 
 function MainMap() {
-  const [blocks, setBlocks] = useState(INITIAL_BLOCKS)
-  const [selectedBlock, setSelectedBlock] = useState(INITIAL_BLOCKS[0])
+  const [blocks, setBlocks] = useState([])
+  const [selectedBlock, setSelectedBlock] = useState(null)
   const [selectedIndustry, setSelectedIndustry] = useState('커피-음료')
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState('전체')
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('전체')
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [baseCoord, setBaseCoord] = useState({ lat: 37.5537, lon: 126.9236 })
+  const [loading, setLoading] = useState(false)
+
   const navigate = useNavigate()
 
-  // 백엔드 API 연동 위치 (HANDOFF.md 5장 API 참고)
   useEffect(() => {
-    /* 실제 API 연동 시 주석 해제하여 사용:
-    fetch(`/api/blocks?industry=${encodeURIComponent(selectedIndustry)}`)
-      .then(res => res.json())
-      .then(data => {
-        setBlocks(data);
-        if(data.length > 0) setSelectedBlock(data[0]);
-      })
-      .catch(err => console.error("API Fetch Error:", err));
-    */
-  }, [selectedIndustry])
+    const fetchBlocks = async () => {
+      setLoading(true)
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+        const response = await fetch(`${baseUrl}/api/v1/blocks?swLat=37.45&swLng=126.80&neLat=37.65&neLng=127.15`)
+        
+        if (response.ok) {
+          const resData = await response.json()
+          const rawBlocks = resData.blocks || resData || []
+          
+          if (rawBlocks.length > 0) {
+            const normalizedBlocks = rawBlocks.map((b, idx) => ({
+              ...b,
+              id: b.id || b.block_id || b.basId || (idx + 1),
+              name: b.name || b.block_name || b.blockName || '상권 정보',
+              riskScore: b.riskScore ?? b.risk_score ?? b.csiScore ?? 50,
+              riskGrade: b.riskGrade || b.risk_grade || '주의',
+              mainIndustry: b.mainIndustry || b.main_industry || b.industry || '커피-음료',
+              region: b.region || '상권 유형'
+            }))
+            setBlocks(normalizedBlocks)
+            setSelectedBlock(normalizedBlocks[0])
+            localStorage.setItem('selectedBlockId', normalizedBlocks[0].id)
+          } else {
+            setBlocks(FALLBACK_BLOCKS)
+            setSelectedBlock(FALLBACK_BLOCKS[0])
+            localStorage.setItem('selectedBlockId', FALLBACK_BLOCKS[0].id)
+          }
+        } else {
+          setBlocks(FALLBACK_BLOCKS)
+          setSelectedBlock(FALLBACK_BLOCKS[0])
+          localStorage.setItem('selectedBlockId', FALLBACK_BLOCKS[0].id)
+        }
+      } catch (err) {
+        setBlocks(FALLBACK_BLOCKS)
+        setSelectedBlock(FALLBACK_BLOCKS[0])
+        localStorage.setItem('selectedBlockId', FALLBACK_BLOCKS[0].id)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const getDynamicCoords = (blockIndex, lat, lon) => {
-    const offsets = [
-      [0.002, 0.002], [-0.002, 0.002], [0.004, -0.002],
-      [-0.004, 0.004], [0.006, 0.000], [-0.006, 0.000]
-    ]
-    const [dlat, dlon] = offsets[blockIndex % offsets.length]
+    fetchBlocks()
+  }, [])
+
+  const filteredBlocks = blocks.filter(block => {
+    const matchRegion = selectedRegionFilter === '전체' || block.region === selectedRegionFilter
+    const matchRisk = selectedRiskFilter === '전체' || block.riskGrade === selectedRiskFilter
+    const matchIndustry = !selectedIndustry || (block.mainIndustry ? block.mainIndustry.includes(selectedIndustry) : true)
+    return matchRegion && matchRisk && matchIndustry
+  })
+
+  const getBlockBounds = (lat, lng) => {
+    const delta = 0.0015
     return [
-      [lat + dlat, lon + dlon],
-      [lat + dlat + 0.003, lon + dlon + 0.003]
+      [lat - delta, lng - delta],
+      [lat + delta, lng + delta]
     ]
   }
 
-  // 위험도 필터링
-  const filteredBlocks = blocks.filter(block => {
-    if (selectedRiskFilter === '전체') return true
-    return block.risk_grade === selectedRiskFilter
-  })
+  const getDisplayScore = (block) => {
+    if (!block) return '-'
+    const score = block.riskScore ?? block.risk_score
+    return score !== undefined && score !== null ? `${score}점` : '-점'
+  }
+
+  // 상권 선택 시 상태 및 localStorage 동기화 함수
+  const handleSelectBlock = (block) => {
+    setSelectedBlock(block)
+    if (block?.id) {
+      localStorage.setItem('selectedBlockId', block.id)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#F5F5FA' }}>
       <Sidebar />
 
-      {/* 왼쪽 사이드바 */}
       <div style={{
-        width: '300px', background: 'white',
+        width: '320px', background: 'white',
         borderRight: '1px solid #E2E8F0',
         display: 'flex', flexDirection: 'column',
         padding: '20px', overflow: 'hidden'
       }}>
         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', color: '#1E293B', textAlign: 'left' }}>
-          메인 지도
+          상권 과포화 지도
         </h2>
 
-        {/* 블록 목록 */}
         <div style={{
           border: '1px solid #E2E8F0', borderRadius: '12px',
           padding: '12px', marginBottom: '16px',
@@ -137,76 +176,89 @@ function MainMap() {
             <span style={{
               background: '#EFF6FF', color: '#1D4ED8',
               fontSize: '11px', padding: '2px 8px', borderRadius: '20px'
-            }}>총 {filteredBlocks.length}개</span>
+            }}>
+              총 {filteredBlocks.length}개
+            </span>
           </div>
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            {filteredBlocks.map(block => {
-              const color = getRiskColor(block.risk_grade)
-              return (
-                <div
-                  key={block.block_id}
-                  onClick={() => setSelectedBlock(block)}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '8px 6px', borderBottom: '1px solid #F1F5F9',
-                    cursor: 'pointer',
-                    background: selectedBlock?.block_id === block.block_id ? '#F0F7FF' : 'transparent',
-                    borderRadius: '6px'
-                  }}
-                >
-                  <div>
-                    <span style={{ fontSize: '11px', color: '#94A3B8', marginRight: '6px' }}>{block.block_id}</span>
-                    <span style={{ fontSize: '13px', fontWeight: '500' }}>{block.block_name}</span>
+          
+          {loading ? (
+            <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: '#64748B' }}>
+              상권 목록 불러오는 중...
+            </div>
+          ) : (
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {filteredBlocks.map(block => {
+                const score = block.riskScore ?? block.risk_score ?? 50
+                const color = getRiskColor(block.riskGrade, score)
+                const isSelected = selectedBlock?.id === block.id
+
+                return (
+                  <div
+                    key={block.id || block.basId}
+                    onClick={() => handleSelectBlock(block)}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 8px', borderBottom: '1px solid #F1F5F9',
+                      cursor: 'pointer',
+                      background: isSelected ? '#F0F7FF' : 'transparent',
+                      borderRadius: '6px'
+                    }}
+                  >
+                    <div style={{ textAlign: 'left', flex: 1, paddingRight: '8px' }}>
+                      <div style={{ fontSize: '11px', color: '#94A3B8' }}>{block.region}</div>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1E293B' }}>{block.name}</div>
+                    </div>
+                    <span style={{
+                      fontSize: '11px', fontWeight: '700', color: 'white',
+                      backgroundColor: color, padding: '2px 8px', borderRadius: '4px'
+                    }}>
+                      {block.riskGrade || '주의'}
+                    </span>
                   </div>
-                  <span style={{
-                    fontSize: '11px', fontWeight: '700', color: 'white',
-                    backgroundColor: color, padding: '2px 6px', borderRadius: '4px'
-                  }}>
-                    {block.risk_grade}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
-        {/* 선택 블록 */}
         {selectedBlock && (
-          <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px' }}>
-            <div style={{ marginBottom: '8px', textAlign: 'left' }}>
-              <span style={{ fontSize: '13px', color: '#64748B' }}>선택 블록</span>
+          <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px', background: '#FAFAFA' }}>
+            <div style={{ marginBottom: '6px', textAlign: 'left' }}>
+              <span style={{ fontSize: '12px', color: '#64748B', fontWeight: '600' }}>선택 블록 정보</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#1E293B' }}>
-                {selectedBlock.block_id} {selectedBlock.block_name}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span style={{ fontSize: '15px', fontWeight: '700', color: '#1E293B', textAlign: 'left' }}>
+                {selectedBlock.name}
               </span>
               <span style={{
                 fontSize: '12px', fontWeight: '700', color: 'white',
-                backgroundColor: getRiskColor(selectedBlock.risk_grade),
+                backgroundColor: getRiskColor(selectedBlock.riskGrade, selectedBlock.riskScore ?? selectedBlock.risk_score ?? 50),
                 padding: '3px 8px', borderRadius: '4px'
               }}>
-                {selectedBlock.risk_grade}
+                {selectedBlock.riskGrade || '주의'}
               </span>
             </div>
+
             {[
-              ['위험도 등급', selectedBlock.risk_grade],
-              ['위험 점수', `${selectedBlock.risk_score ?? '-'}점`],
-              ['상권 지역', selectedBlock.region],
-              ['선택 업종', selectedIndustry],
-              ['유동인구', selectedBlock.population],
-              ['경쟁 점포', selectedBlock.stores],
+              ['상권 유형', selectedBlock.region || '-'],
+              ['위험 점수', getDisplayScore(selectedBlock)],
+              ['업종명', selectedBlock.mainIndustry || selectedIndustry],
             ].map(([label, value]) => (
               <div key={label} style={{
                 display: 'flex', justifyContent: 'space-between',
-                padding: '4px 0', fontSize: '12px',
-                borderBottom: '1px solid #F1F5F9'
+                padding: '5px 0', fontSize: '12px',
+                borderBottom: '1px solid #E2E8F0'
               }}>
                 <span style={{ color: '#64748B' }}>{label}</span>
-                <span style={{ fontWeight: '500' }}>{value}</span>
+                <span style={{ fontWeight: '600', color: '#1E293B' }}>{value}</span>
               </div>
             ))}
+
             <button
-              onClick={() => navigate(`/prediction/${selectedBlock.block_id}`)}
+              onClick={() => {
+                const targetId = selectedBlock?.id || localStorage.getItem('selectedBlockId') || 5;
+                navigate(`/prediction/${targetId}`);
+              }}
               style={{
                 width: '100%', marginTop: '12px',
                 background: '#5E81F4', color: 'white',
@@ -215,51 +267,48 @@ function MainMap() {
                 fontWeight: '600', cursor: 'pointer'
               }}
             >
-              예측 결과 바로가기 →
+              예측 결과 상세 분석 →
             </button>
           </div>
         )}
       </div>
 
-      {/* 오른쪽 지도 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{
           padding: '12px 20px', background: 'white',
           borderBottom: '1px solid #E2E8F0',
           display: 'flex', gap: '12px', alignItems: 'center'
         }}>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: '#5E81F4' }}>상권 히트맵</span>
+          <span style={{ fontSize: '15px', fontWeight: '700', color: '#5E81F4' }}>상권 위험 진단 히트맵</span>
           <span style={{ fontSize: '12px', color: '#94A3B8', flex: 1, textAlign: 'right' }}>
-            마커 색상은 상권 위험도(안전/주의/위험)를 나타냅니다. 클릭하면 상세 분석으로 이동합니다.
+            위험등급 (안전 0~49 / 주의 50~74 / 위험 75~100점). 클릭 시 상세 페이지로 이동합니다.
           </span>
         </div>
 
-        {/* 상단 검색 및 필터Bar */}
         <div style={{
           padding: '12px 20px', background: '#F8FAFC',
           borderBottom: '1px solid #E2E8F0',
-          display: 'flex', gap: '12px', alignItems: 'center'
+          display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap'
         }}>
           <input
             type="text"
-            placeholder="상권 또는 구 이름 검색 (예: 연남동)"
+            placeholder="상권 검색 (예: 경리단길북측, 연남동)"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
             style={{
-              flex: 1, maxWidth: '280px', padding: '8px 12px',
-              border: '1px solid #E2E8F0', borderRadius: '8px',
+              flex: 1, minWidth: '200px', maxWidth: '260px', padding: '8px 12px',
+              border: '1px solid #CBD5E1', borderRadius: '8px',
               fontSize: '13px', outline: 'none'
             }}
           />
 
-          {/* 요구사항 5: 업종 선택 필터 추가 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>업종 선택:</span>
+            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>업종:</span>
             <select
               value={selectedIndustry}
               onChange={(e) => setSelectedIndustry(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '13px' }}
+              style={{ padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
             >
               <option value="커피-음료">커피-음료</option>
               <option value="한식식당">한식식당</option>
@@ -269,23 +318,39 @@ function MainMap() {
             </select>
           </div>
 
-          {/* 요구사항 1 & 6: 위험도 등급 필터 */}
-          <select
-            value={selectedRiskFilter}
-            onChange={(e) => setSelectedRiskFilter(e.target.value)}
-            style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '13px' }}
-          >
-            <option value="전체">위험도 전체</option>
-            <option value="안전">안전</option>
-            <option value="주의">주의</option>
-            <option value="위험">위험</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>상권 유형:</span>
+            <select
+              value={selectedRegionFilter}
+              onChange={(e) => setSelectedRegionFilter(e.target.value)}
+              style={{ padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+            >
+              <option value="전체">상권 유형 전체</option>
+              <option value="골목상권">골목상권</option>
+              <option value="발달상권">발달상권</option>
+              <option value="전통시장">전통시장</option>
+              <option value="관광특구">관광특구</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>위험도:</span>
+            <select
+              value={selectedRiskFilter}
+              onChange={(e) => setSelectedRiskFilter(e.target.value)}
+              style={{ padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+            >
+              <option value="전체">위험도 전체</option>
+              <option value="안전">안전 (0~49)</option>
+              <option value="주의">주의 (50~74)</option>
+              <option value="위험">위험 (75~100)</option>
+            </select>
+          </div>
         </div>
 
-        {/* 지도 */}
         <div style={{ flex: 1, position: 'relative' }}>
           <MapContainer
-            center={[37.5537, 126.9236]}
+            center={[37.5537, 126.9636]}
             zoom={13}
             style={{ height: '100%', width: '100%' }}
           >
@@ -295,17 +360,20 @@ function MainMap() {
             />
             <MoveToLocation
               query={searchQuery}
-              onMove={(lat, lon) => setBaseCoord({ lat, lon })}
+              onMove={() => {}}
             />
-            {filteredBlocks.map((block, index) => {
-              const coords = getDynamicCoords(index, baseCoord.lat, baseCoord.lon)
-              const color = getRiskColor(block.risk_grade)
-              const isSelected = selectedBlock?.block_id === block.block_id
+            {filteredBlocks.map((block) => {
+              const lat = block.lat || 37.5537
+              const lng = block.lng || 126.9236
+              const bounds = getBlockBounds(lat, lng)
+              const score = block.riskScore ?? block.risk_score ?? 50
+              const color = getRiskColor(block.riskGrade, score)
+              const isSelected = selectedBlock?.id === block.id
 
               return (
                 <Rectangle
-                  key={`${block.block_id}-${index}`}
-                  bounds={coords}
+                  key={block.id || block.basId}
+                  bounds={bounds}
                   pathOptions={{
                     color: isSelected ? '#1E293B' : color,
                     fillColor: color,
@@ -313,13 +381,13 @@ function MainMap() {
                     weight: isSelected ? 3 : 1
                   }}
                   eventHandlers={{
-                    click: () => setSelectedBlock(block)
+                    click: () => handleSelectBlock(block)
                   }}
                 >
                   <Tooltip permanent direction="center" className="block-label">
                     <div style={{ textAlign: 'center', fontWeight: '700', fontSize: '11px', color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
-                      <div>{block.block_name}</div>
-                      <div>({block.risk_grade})</div>
+                      <div>{block.name}</div>
+                      <div>({block.riskGrade || '주의'})</div>
                     </div>
                   </Tooltip>
                 </Rectangle>
@@ -327,7 +395,6 @@ function MainMap() {
             })}
           </MapContainer>
 
-          {/* 요구사항 6: 3색 범례 */}
           <div style={{
             position: 'absolute', bottom: '16px', left: '16px',
             background: 'white', borderRadius: '10px',
@@ -336,9 +403,9 @@ function MainMap() {
             zIndex: 1000
           }}>
             {[
-              ['#22C55E', '안전'],
-              ['#EAB308', '주의'],
-              ['#EF4444', '위험'],
+              ['#22C55E', '안전 (0~49)'],
+              ['#EAB308', '주의 (50~74)'],
+              ['#EF4444', '위험 (75~100)'],
             ].map(([color, label]) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ width: '12px', height: '12px', background: color, borderRadius: '3px', display: 'inline-block' }}></span>
