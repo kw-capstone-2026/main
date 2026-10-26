@@ -1,37 +1,24 @@
-# 🚀 CSI Platform - 프론트엔드 (csi-platform)
+# 🏙️ CSI Platform (상권 과포화 위험 진단 서비스)
 
-상권 분석 및 위험도 예측을 위한 프론트엔드 대시보드 플랫폼입니다.
-
-## 🔗 라이브 배포 링크 (Live Demo)
-- **Production URL**: [https://csi-platform.vercel.app](https://csi-platform.vercel.app)
+## 🔗 배포 링크 (Live Demo)
+* **웹 서비스 접속하기**: [https://csi-platform.vercel.app/map](https://csi-platform.vercel.app/map)
 
 ---
 
-## 📌 주요 업데이트 및 수정 사항
+## 🚀 프론트엔드 주요 진행 상황 및 구현 기능
 
-1. **위험도 등급 및 시각화 체계 개선**
-   - 기존 수치(8.0) 기반 구분에서 `risk_grade` (`안전` / `주의` / `위험`) 3색 시스템으로 전면 전환
-   - 지도 마커 중첩 해결을 위한 **업종 선택 드롭다운 필터** 및 3색 범례 추가
+1. **상권 과포화 위험 진단 지도 (MainMap)**
+   - OpenStreetMap 및 Leaflet을 활용한 인터랙티브 상권 히트맵 시각화
+   - 지역(골목상권, 발달상권 등), 업종(커피-음료, 한식식당 등), 위험도(안전, 주의, 위험)별 실시간 필터링 및 검색 기능 구현
+   - 지도 마커 및 블록 목록 클릭 시 `localStorage`를 통한 선택 상권 ID 동기화 및 페이지 간 라우팅 유지 처리
 
-2. **UI/UX 및 차트 보완**
-   - **SHAP 위험요인 차트**: 요인별 기여도 색상(양수: 빨강 / 음수: 파랑) 유지 및 실제 지표값(Value) 병기
-   - **데이터 미제공 영역 숨김 처리**: 404 에러를 유발하던 생존곡선(`/survival-curve`) 및 빈 차트 영역 화면에서 배제
+2. **SHAP 기반 위험 요인 분석 (Prediction)**
+   - 백엔드 API(`/api/v1/blocks/{blockId}/shap`) 연동 완료
+   - AI팀 최종 확정 피처 라벨 및 실제 피처 값(`featureValue`), 기여도(`shapValue`)를 반영한 바 차트 및 상세 지표 시각화
 
-3. **안전성 및 예외 처리 (Fallback Data)**
-   - 백엔드 API 서버 미연동/비활성화 상태 시에도 브라우저 시연이 정상 동작하도록 **Mock Data 예외 처리** 적용
+3. **상권 업종 비교 분석 (Industry Stats)**
+   - 도넛 차트(`PieChart`)를 이용한 상권 내 상위 업종 구성비 및 통계 시각화
+   - 미구현 또는 누락된 백엔드 데이터(생존 곡선, 월별 추이 등)에 대한 안전한 예외 처리(Fallback UI 및 "데이터 준비 중" 안내 문구 적용)
 
----
-
-## 🛠️ 기술 스택 (Tech Stack)
-- **Frontend**: React, Vite, JavaScript
-- **Styling**: Tailwind CSS / CSS Modules
-- **Deployment**: Vercel CLI / Vercel Production
-
----
-
-## 💻 로컬 개발 환경 실행 방법
-
-1. 레포지토리 클론 (Repository Clone)
-   ```bash
-   git clone [https://github.com/사용자계정/csi-platform.git](https://github.com/사용자계정/csi-platform.git)
-   cd csi-platform
+4. **인증 및 회원가입 (Auth)**
+   - 백엔드 스펙에 맞춘 로그인/회원가입 컴포넌트 구성 및 API 연동 준비 완료
