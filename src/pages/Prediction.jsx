@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ResponsiveContainer, BarChart, Bar, Cell, LabelList, XAxis, YAxis, Tooltip } from 'recharts'
 import Sidebar from '../components/Sidebar'
 
-// SHAP featureValue 단위 포맷팅 및 한글 지표명 fallback 대응
 const FORMAT_MAP = {
   '당월_매출_금액': ['won', ''],
   '당월_매출_건수': ['count', '건'],
@@ -38,7 +37,6 @@ const FORMAT_MAP = {
   '집객시설_수': ['count', '개'],
   '집객시설_밀도': ['density', '개'],
 
-  // 한글 표시명 직접 매핑 (fallback)
   '지하철역까지 거리': ['meter', 'm'],
   '지하철역까지거리': ['meter', 'm'],
   '유동인구 밀도': ['density_pop', '명/㎡'],
@@ -129,18 +127,20 @@ function Prediction() {
       setLoading(true)
       
       let currentId = blockId
-      if (!currentId || currentId === 'undefined' || currentId === 'null' || isNaN(Number(currentId))) {
-        currentId = '1' 
+      if (!currentId || currentId === 'undefined' || currentId === 'null') {
+        currentId = '828' // 기본값 경리단길 ID
       }
 
-      const baseUrl = ''
+      // 수정 후 (baseUrl을 명시적으로 붙여줌)
+      const baseUrl = 'http://localhost:8080'
 
       try {
-        const [blockRes, predRes, shapRes] = await Promise.all([
-          fetch(`${baseUrl}/api/v1/blocks/${currentId}`).catch(() => null),
-          fetch(`${baseUrl}/api/v1/blocks/${currentId}/prediction`).catch(() => null),
-          fetch(`${baseUrl}/api/v1/blocks/${currentId}/shap`).catch(() => null)
+            const [blockRes, predRes, shapRes] = await Promise.all([
+            fetch(`${baseUrl}/api/v1/blocks/${currentId}`).catch(() => null),
+            fetch(`${baseUrl}/api/v1/blocks/${currentId}/prediction`).catch(() => null),
+            fetch(`${baseUrl}/api/v1/blocks/${currentId}/shap`).catch(() => null)
         ])
+  // ... 이하 동일
 
         let blockInfo = {}
         let predInfo = {}
@@ -150,23 +150,25 @@ function Prediction() {
         if (predRes && predRes.ok) predInfo = await predRes.json()
         if (shapRes && shapRes.ok) shapInfo = await shapRes.json()
 
-        // ID별 팀원 공지 기준 시연 데이터 정확히 매칭 (1: 경리단길 80위험, 2: 연남동 57주의, 3: 성수역 19안전)
+        // 백엔드가 준 실제 ID(828, 13982, 12396) 기준 이름 및 시연 데이터 매핑
         let defaultName = '경리단길북측'
         let defaultScore = 80
         let defaultGrade = '위험'
+        let defaultIndustry = '커피-음료'
 
-        if (String(currentId) === '2') {
+        const strId = String(currentId)
+        if (strId === '13982') {
           defaultName = '연남동(홍대)'
           defaultScore = 57
           defaultGrade = '주의'
-        } else if (String(currentId) === '3') {
+        } else if (strId === '12396') {
           defaultName = '성수역'
           defaultScore = 19
           defaultGrade = '안전'
         }
 
-        const blockName = blockInfo?.name || predInfo?.blockName || defaultName
-        const industry = blockInfo?.mainIndustry || '커피-음료'
+        const blockName = defaultName
+        const industry = blockInfo?.mainIndustry || defaultIndustry
         const riskScore = predInfo?.riskScore ?? predInfo?.risk_score ?? blockInfo?.riskScore ?? defaultScore
         const riskGrade = predInfo?.riskGrade || predInfo?.risk_grade || blockInfo?.riskGrade || defaultGrade
         const closureRate = predInfo?.closureRate ?? predInfo?.closure_rate ?? 6.5
@@ -229,7 +231,6 @@ function Prediction() {
     <div style={{ display: 'flex', height: '100vh', background: '#F5F5FA' }}>
       <Sidebar />
 
-      {/* 왼쪽 카드 정보 */}
       <div style={{
         width: '320px', background: 'white',
         borderRight: '1px solid #E2E8F0',
@@ -293,7 +294,6 @@ function Prediction() {
         </button>
       </div>
 
-      {/* 오른쪽 메인 SHAP 차트 영역 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '12px 20px', background: 'white', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '15px', fontWeight: '600', color: '#1E293B' }}>대시보드 / 위험 요인 분석</span>

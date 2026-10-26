@@ -10,10 +10,10 @@ const getRiskColor = (riskGrade, riskScore) => {
   return '#22C55E'
 }
 
-// 팀원 공지 기준 시연용 3대 상권 고정 데이터 (경리단길북측 80점, 연남동(홍대) 57점, 성수역 19점)[cite: 2]
+// 백엔드 팀원이 공유해 준 실제 시연용 3대 상권 ID 및 데이터
 const DEMO_BLOCKS = [
   {
-    id: 1,
+    id: 828,
     basId: '3110084_CS100010',
     name: '경리단길북측',
     region: '골목상권',
@@ -24,7 +24,7 @@ const DEMO_BLOCKS = [
     lng: 126.99136
   },
   {
-    id: 2,
+    id: 13982,
     basId: '3120052_CS100010',
     name: '연남동(홍대)',
     region: '발달상권',
@@ -35,7 +35,7 @@ const DEMO_BLOCKS = [
     lng: 126.923485
   },
   {
-    id: 3,
+    id: 12396,
     basId: '3120053_CS100010',
     name: '성수역',
     region: '발달상권',
