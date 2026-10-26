@@ -5,11 +5,24 @@ function Sidebar() {
   const { blockId } = useParams()
   const location = useLocation()
 
-  // 1. 현재 URL 주소(예: /prediction/4 또는 /industry/4)에서 blockId를 추출
-  // 2. 만약 상세 페이지가 아니라면 localStorage나 기본값(예: 상수동 '5')을 참조하되, 현재 blockId가 있으면 최우선으로 사용
-  const currentBlockId = blockId && blockId !== 'undefined' && blockId !== 'null' ? blockId : (localStorage.getItem('selectedBlockId') || '5')
+  // 1. 현재 URL에서 blockId를 우선 가져오고, 없으면 localStorage, 그것도 없으면 시연 기본값 '828'(경리단길) 사용
+  let currentBlockId = blockId && blockId !== 'undefined' && blockId !== 'null' ? blockId : null
 
+  if (!currentBlockId) {
+    currentBlockId = localStorage.getItem('selectedBlockId') || '828'
+  }
+
+  // 만약 지도 페이지나 다른 곳에서 상권을 클릭해 localStorage가 업데이트되었다면 동기화 반영
   const isActive = (path) => location.pathname.startsWith(path)
+
+  const handleNavigation = (basePath) => {
+    // 이동할 때 최신 localStorage 값이나 현재 blockId를 반영
+    const targetId = blockId && blockId !== 'undefined' && blockId !== 'null' 
+      ? blockId 
+      : (localStorage.getItem('selectedBlockId') || '828')
+    
+    navigate(`${basePath}/${targetId}`)
+  }
 
   return (
     <div style={{
@@ -38,9 +51,9 @@ function Sidebar() {
         🗺️
       </button>
 
-      {/* 2. 위험 진단 및 SHAP 분석 버튼 (현재 선택된 blockId 유지) */}
+      {/* 2. 위험 진단 및 SHAP 분석 버튼 */}
       <button
-        onClick={() => navigate(`/prediction/${currentBlockId}`)}
+        onClick={() => handleNavigation('/prediction')}
         title="위험 진단 및 SHAP 분석"
         style={{
           width: '40px', height: '40px', border: 'none', borderRadius: '8px',
@@ -51,9 +64,9 @@ function Sidebar() {
         📊
       </button>
 
-      {/* 3. 상권 업종 분석 버튼 (현재 선택된 blockId 유지) */}
+      {/* 3. 상권 업종 분석 버튼 */}
       <button
-        onClick={() => navigate(`/industry/${currentBlockId}`)}
+        onClick={() => handleNavigation('/industry')}
         title="상권 업종 분석"
         style={{
           width: '40px', height: '40px', border: 'none', borderRadius: '8px',

@@ -3,110 +3,39 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ResponsiveContainer, BarChart, Bar, Cell, LabelList, XAxis, YAxis, Tooltip } from 'recharts'
 import Sidebar from '../components/Sidebar'
 
-const FORMAT_MAP = {
-  '당월_매출_금액': ['won', ''],
-  '당월_매출_건수': ['count', '건'],
-  '점포_수_y': ['avg', '개'],
-  '유사_업종_점포_수_y': ['avg', '개'],
-  '개업_율_y': ['pct', '%'],
-  '폐업_률_y': ['pct', '%'],
-  '프랜차이즈_점포_수_y': ['avg', '개'],
-  '프랜차이즈점포비율(%)': ['pct', '%'],
-  '개인점포비율(%)': ['pct', '%'],
-  '상권_전체점포_수': ['count', '개'],
-  '상권 내부 업종 점유율(%)': ['share', '%'],
-  '운영_영업_개월_평균': ['months', '개월'],
-  '폐업_영업_개월_평균': ['months', '개월'],
-  '유효_수요_전환율': ['index', ''],
-  '점포당_평균_매출': ['won', ''],
-  '전년_동기_대비_폐업_증감률': ['yoy', ''],
-  '소득_구간_코드': ['code', '구간'],
-  '상권_업종_적합도': ['share', '%'],
-  '총_아파트_세대수': ['count', '세대'],
-  '아파트_평균_시가': ['won', ''],
-  '총_직장_인구_수': ['count', '명'],
-  '남성_직장_인구_수': ['count', '명'],
-  '여성_직장_인구_수': ['count', '명'],
-  '직장인구_100명당_점포수': ['per100', '개'],
-  '아파트_100세대당_점포수': ['per100', '개'],
-  '유사업종_점포비율': ['pct', '%'],
-  '직장인구_100명당_유사업종수': ['per100', '개'],
-  '점포당_매출_밀도': ['won', ''],
-  '직장인구_1인당_매출': ['won', ''],
-  '아파트세대당_매출': ['won', ''],
-  '집객시설_수': ['count', '개'],
-  '집객시설_밀도': ['density', '개'],
-
-  '지하철역까지 거리': ['meter', 'm'],
-  '지하철역까지거리': ['meter', 'm'],
-  '유동인구 밀도': ['density_pop', '명/㎡'],
-  '유동인구밀도': ['density_pop', '명/㎡'],
-  '점포 연령': ['months', '개월'],
-  '점포연령': ['months', '개월'],
-  '인근 경쟁 점포 수': ['count', '개'],
-  '인근경쟁점포수': ['count', '개'],
-  '횡단보도까지 거리': ['meter', 'm'],
-  '횡단보도까지거리': ['meter', 'm'],
-  '점포당 평균 매출': ['won', ''],
-  '이번 분기 매출액': ['won', ''],
-  '상권 평균 폐업률': ['pct', '%'],
-  '주변 집객시설 밀집도': ['density', '개'],
-  '작년 같은 분기 대비 폐업 증감': ['yoy', ''],
-  '상권 운영 점포 평균 영업기간': ['months', '개월']
-}
-
-const ZERO_MISSING = {
-  '소득_구간_코드': '자료 없음',
-  '상권_업종_적합도': '해당 소비 항목 없음',
-  '총_아파트_세대수': '아파트 없음',
-  '아파트_평균_시가': '아파트 없음',
-  '아파트_100세대당_점포수': '아파트 없음',
-  '아파트세대당_매출': '아파트 없음',
-}
-
-function formatFeatureValue(name, v) {
-  if (v === null || v === undefined || Number.isNaN(Number(v))) {
-    if (name.includes('지하철')) return '250m'
-    if (name.includes('유동인구')) return '1.2만 명/일'
-    if (name.includes('점포 연령') || name.includes('영업')) return '48개월'
-    if (name.includes('경쟁 점포')) return '14개'
-    if (name.includes('횡단보도')) return '45m'
+// 단위 변환 및 포맷 함수
+function formatFeatureValue(name, label, v) {
+  if (v === null || v === undefined || v === '' || Number.isNaN(Number(v))) {
     return '-'
   }
-
   const num = Number(v)
-  if (num === 0 && ZERO_MISSING[name]) return ZERO_MISSING[name]
 
-  const [kind, unit] = FORMAT_MAP[name] || ['index', '']
-  const comma = (x) => Math.round(x).toLocaleString('ko-KR')
-
-  switch (kind) {
-    case 'won':
-      if (Math.abs(num) >= 1e8) return `${(num / 1e8).toFixed(1)}억 원`
-      if (Math.abs(num) >= 1e4) return `${comma(num / 1e4)}만 원`
-      return `${comma(num)}원`
-    case 'count':
-      if (unit === '건' && num >= 1e4) return `${(num / 1e4).toFixed(1)}만 건`
-      return `${comma(num)}${unit}`
-    case 'meter':
-      return `${comma(num)}m`
-    case 'density_pop':
-      return num >= 1e4 ? `${(num / 1e4).toFixed(1)}만 명` : `${comma(num)}명`
-    case 'avg': return `${num.toFixed(1)}개`
-    case 'pct': return `${num.toFixed(1)}%`
-    case 'share': return `${num.toFixed(1)}%`
-    case 'per100': return `${num.toFixed(2)}개`
-    case 'density': return `${num.toFixed(1)}개`
-    case 'months': return `${Math.round(num)}개월`
-    case 'code': return `${Math.trunc(num)}구간`
-    case 'yoy': {
-      let t = Math.abs(num).toFixed(2)
-      if (t.endsWith('0')) t = t.slice(0, -1)
-      return (num < 0 ? '−' : '') + t
-    }
-    default:
-      return Math.abs(num) >= 1e4 ? num.toLocaleString('ko-KR', { maximumFractionDigits: 1 }) : `${num.toFixed(1)}${unit}`
+  // 가이드라인 및 스크린샷 기준에 맞춘 포맷팅
+  if (label?.includes('매출') || name?.includes('매출')) {
+    if (Math.abs(num) >= 1e8) return `${(num / 1e8).toFixed(1)}억 원`
+    if (Math.abs(num) >= 1e4) return `${Math.round(num / 1e4).toLocaleString('ko-KR')}만 원`
+    return `${Math.round(num).toLocaleString('ko-KR')}원`
   }
+  if (label?.includes('건수') || name?.includes('건수')) {
+    if (Math.abs(num) >= 1e4) return `${(num / 1e4).toFixed(1)}만 건`
+    return `${Math.round(num).toLocaleString('ko-KR')}건`
+  }
+  if (label?.includes('폐업') || label?.includes('증감') || name?.includes('증감')) {
+    let t = Math.abs(num).toFixed(2)
+    if (t.endsWith('0')) t = t.slice(0, -1)
+    return (num < 0 ? '−' : '') + t
+  }
+  if (label?.includes('비율') || label?.includes('적합도') || label?.includes('폐업률')) {
+    return `${(num < 1 ? num * 100 : num).toFixed(1)}%` // 깨진 오타 수정
+  }
+  if (label?.includes('개월') || name?.includes('개월')) {
+    return `${Math.round(num)}개월`
+  }
+  if (label?.includes('밀도')) {
+    return `점포 100개당 ${(num * 100).toFixed(1)}개` // 깨진 오타 수정
+  }
+
+  return num >= 1e4 ? num.toLocaleString('ko-KR', { maximumFractionDigits: 1 }) : String(num)
 }
 
 const getGradeStyle = (grade, score) => {
@@ -123,24 +52,24 @@ function Prediction() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true 
+
     const fetchPredictionData = async () => {
       setLoading(true)
       
       let currentId = blockId
       if (!currentId || currentId === 'undefined' || currentId === 'null') {
-        currentId = '828' // 기본값 경리단길 ID
+        currentId = localStorage.getItem('selectedBlockId') || '828'
       }
 
-      // 수정 후 (baseUrl을 명시적으로 붙여줌)
       const baseUrl = 'http://localhost:8080'
 
       try {
-            const [blockRes, predRes, shapRes] = await Promise.all([
-            fetch(`${baseUrl}/api/v1/blocks/${currentId}`).catch(() => null),
-            fetch(`${baseUrl}/api/v1/blocks/${currentId}/prediction`).catch(() => null),
-            fetch(`${baseUrl}/api/v1/blocks/${currentId}/shap`).catch(() => null)
+        const [blockRes, predRes, shapRes] = await Promise.all([
+          fetch(`${baseUrl}/api/v1/blocks/${currentId}`).catch(() => null),
+          fetch(`${baseUrl}/api/v1/blocks/${currentId}/prediction`).catch(() => null),
+          fetch(`${baseUrl}/api/v1/blocks/${currentId}/shap`).catch(() => null)
         ])
-  // ... 이하 동일
 
         let blockInfo = {}
         let predInfo = {}
@@ -149,12 +78,8 @@ function Prediction() {
         if (blockRes && blockRes.ok) blockInfo = await blockRes.json()
         if (predRes && predRes.ok) predInfo = await predRes.json()
         if (shapRes && shapRes.ok) shapInfo = await shapRes.json()
-        if (shapRes && shapRes.ok) shapInfo = await shapRes.json()
 
-// 👇 이 코드를 추가해서 백엔드가 실제로 어떤 데이터 형태를 주는지 눈으로 확인해 보세요!
-console.log('백엔드에서 받아온 SHAP 원본 데이터:', shapInfo);
-        // 백엔드가 준 실제 ID(828, 13982, 12396) 기준 이름 및 시연 데이터 매핑
-        let defaultName = '경리단길북측'
+        let defaultName = '경리단길 북측'
         let defaultScore = 80
         let defaultGrade = '위험'
         let defaultIndustry = '커피-음료'
@@ -181,14 +106,19 @@ console.log('백엔드에서 받아온 SHAP 원본 데이터:', shapInfo);
         const rawFeatures = shapInfo?.features || (Array.isArray(shapInfo) ? shapInfo : [])
 
         const formattedShap = rawFeatures.map((item, idx) => {
-          const rawName = item?.feature_name || item?.featureName || item?.label || item?.name || item?.rawName || ''
-          const displayName = item?.label || item?.name || item?.feature_name || `지표 ${idx + 1}`
+          const displayName = item?.label || item?.name || `지표 ${idx + 1}`
+          const rawName = item?.name || ''
           
-          const rawVal = item?.shapValue ?? item?.shap_value ?? item?.value ?? item?.importance ?? 0
+          const rawVal = item?.shapValue ?? item?.shap_value ?? item?.value ?? 0
           const val = !isNaN(Number(rawVal)) ? Number(Number(rawVal).toFixed(3)) : 0
+          const valStr = val > 0 ? `+${val}` : `${val}` // 기여도 문자열 (+ 부호 포함)
 
-          const rawActualVal = item?.feature_value ?? item?.featureValue ?? item?.value ?? item?.actual_value
-          const formattedActual = formatFeatureValue(rawName, rawActualVal)
+          // 백엔드가 주는 featureValue를 확실하게 추출 후 포맷팅
+          const rawActualVal = item?.featureValue ?? item?.feature_value ?? item?.actualValue ?? 0
+          const formattedActual = formatFeatureValue(rawName, displayName, rawActualVal)
+          
+          // 🔥 차트 오류 원천 차단: 렌더링할 텍스트 전체를 여기서 완벽히 조립
+          const displayLabel = `${valStr} (실제: ${formattedActual})`
 
           return {
             rank: item?.rank || (idx + 1),
@@ -196,30 +126,39 @@ console.log('백엔드에서 받아온 SHAP 원본 데이터:', shapInfo);
             value: val,
             absVal: Math.abs(val) > 0.01 ? Math.abs(val) : 0.05,
             actualValue: formattedActual,
+            displayLabel: displayLabel, // 조립된 텍스트
             color: val >= 0 ? '#EF4444' : '#3B82F6'
           }
         })
 
-        setData({
-          blockId: currentId,
-          blockName,
-          industry,
-          closureRate,
-          openRate,
-          riskScore,
-          riskGrade,
-          riskColor: gradeStyle.color,
-          badgeBg: gradeStyle.bg,
-          shapData: formattedShap
-        })
+        if (isMounted) {
+          setData({
+            blockId: currentId,
+            blockName,
+            industry,
+            closureRate,
+            openRate,
+            riskScore,
+            riskGrade,
+            riskColor: gradeStyle.color,
+            badgeBg: gradeStyle.bg,
+            shapData: formattedShap
+          })
+        }
       } catch (err) {
         console.error('API 연동 예외 발생:', err)
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     fetchPredictionData()
+
+    return () => {
+      isMounted = false
+    }
   }, [blockId])
 
   if (loading || !data) {
@@ -311,14 +250,17 @@ console.log('백엔드에서 받아온 SHAP 원본 데이터:', shapInfo);
             {data.shapData && data.shapData.length > 0 ? (
               <div style={{ width: '100%', height: '320px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.shapData} layout="vertical" margin={{ left: 80, right: 200, top: 10, bottom: 10 }}>
+                  <BarChart data={data.shapData} layout="vertical" margin={{ left: 10, right: 220, top: 10, bottom: 10 }}>
                     <XAxis type="number" fontSize={12} hide />
-                    <YAxis type="category" dataKey="name" fontSize={12} width={180} tick={{ fill: '#475569', fontWeight: '600' }} />
+                    <YAxis type="category" dataKey="name" fontSize={12} width={230} tick={{ fill: '#475569', fontWeight: '600' }} />
                     <Tooltip
-                      formatter={(value, name, props) => [
-                        `기여도: ${props?.payload?.value > 0 ? '+' : ''}${props?.payload?.value || 0} (실제: ${props?.payload?.actualValue || '-'})`,
-                        '요인'
-                      ]}
+                      formatter={(value, name, props) => {
+                        // 미리 만들어둔 displayLabel을 통째로 띄웁니다
+                        const rawPayload = Array.isArray(props?.payload) ? props.payload[0]?.payload : props?.payload;
+                        const itemData = rawPayload || props || {};
+                        const labelStr = itemData.displayLabel || `${value > 0 ? '+' : ''}${value}`;
+                        return [labelStr, '요인']
+                      }}
                       contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}
                     />
                     <Bar 
@@ -330,14 +272,10 @@ console.log('백엔드에서 받아온 SHAP 원본 데이터:', shapInfo);
                       {data.shapData.map((item, i) => (
                         <Cell key={i} fill={item.color} />
                       ))}
+                      {/* 🔥 Recharts 버그 방지: formatter 없이 dataKey로 바로 꽂습니다 */}
                       <LabelList
-                        dataKey="absVal"
+                        dataKey="displayLabel"
                         position="right"
-                        formatter={(v, entry) => {
-                          const val = entry?.payload?.value ?? 0
-                          const actual = entry?.payload?.actualValue ?? '-'
-                          return `${val > 0 ? '+' : ''}${val} (실제: ${actual})`
-                        }}
                         style={{ fontSize: '11px', fontWeight: '700', fill: '#1E293B' }}
                       />
                     </Bar>

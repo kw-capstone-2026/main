@@ -1,7 +1,7 @@
 # 🏙️ CSI Platform (상권 과포화 위험 진단 서비스)
 
 ## 🔗 배포 링크 (Live Demo)
-* **웹 서비스 접속하기**: [https://csi-platform.vercel.app/map](https://csi-platform.vercel.app/map)
+* **웹 서비스 접속하기**: https://csi-platform.vercel.app/
 
 ---
 

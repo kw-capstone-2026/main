@@ -15,7 +15,7 @@ const DEMO_BLOCKS = [
   {
     id: 828,
     basId: '3110084_CS100010',
-    name: '경리단길북측',
+    name: '경리단길 북측',
     region: '골목상권',
     mainIndustry: '커피-음료',
     riskGrade: '위험',
@@ -85,8 +85,21 @@ function MainMap() {
     return matchRegion && matchRisk && matchIndustry && matchSearch
   })
 
+  // 🔥 피드백 4번: 검색어 및 필터가 바뀔 때, 선택된 블록(좌측 하단 정보)을 검색 결과의 첫 번째 상권으로 자동 업데이트
+  useEffect(() => {
+    if (filteredBlocks.length > 0) {
+      const isCurrentlySelectedValid = filteredBlocks.some(b => b.id === selectedBlock?.id)
+      if (!isCurrentlySelectedValid) {
+        handleSelectBlock(filteredBlocks[0])
+      }
+    } else {
+      setSelectedBlock(null)
+    }
+  }, [searchQuery, selectedRegionFilter, selectedRiskFilter])
+
+  // 🔥 피드백 1번: 지도 위 마커(사각형) 크기를 2배로 키움 (0.0015 -> 0.003)
   const getBlockBounds = (lat, lng) => {
-    const delta = 0.0015
+    const delta = 0.01 
     return [
       [lat - delta, lng - delta],
       [lat + delta, lng + delta]
@@ -226,9 +239,9 @@ function MainMap() {
           borderBottom: '1px solid #E2E8F0',
           display: 'flex', gap: '12px', alignItems: 'center'
         }}>
-          <span style={{ fontSize: '15px', fontWeight: '700', color: '#5E81F4' }}>상권 위험 진단 히트맵</span>
+          <span style={{ fontSize: '15px', fontWeight: '700', color: '#5E81F4' }}>상권 위험 지도</span>
           <span style={{ fontSize: '12px', color: '#94A3B8', flex: 1, textAlign: 'right' }}>
-            위험등급 (안전 0~49 / 주의 50~74 / 위험 75~100점). 클릭 시 상세 페이지로 이동합니다.
+            위험등급 (안전 0~49 / 주의 50~74 / 위험 75~100점). 클릭하면 왼쪽에 정보가 표시됩니다.
           </span>
         </div>
 
@@ -252,16 +265,13 @@ function MainMap() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>업종:</span>
+            {/* 🔥 피드백 5번: 커피-음료 하나만 남기고 disabled 속성 추가하여 클릭 불가능하게 고정 */}
             <select
               value={selectedIndustry}
-              onChange={(e) => setSelectedIndustry(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+              disabled
+              style={{ padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', backgroundColor: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' }}
             >
               <option value="커피-음료">커피-음료</option>
-              <option value="한식식당">한식식당</option>
-              <option value="양식음식점">양식음식점</option>
-              <option value="일식음식점">일식음식점</option>
-              <option value="화장품">화장품</option>
             </select>
           </div>
 
@@ -296,9 +306,10 @@ function MainMap() {
         </div>
 
         <div style={{ flex: 1, position: 'relative' }}>
+          {/* 🔥 피드백 1번: 3대 상권이 모두 한눈에 크게 들어오도록 초기 중앙 좌표 조정 및 zoom=12 적용 */}
           <MapContainer
-            center={[37.5537, 126.9636]}
-            zoom={13}
+            center={[37.55, 126.99]} 
+            zoom={12}
             style={{ height: '100%', width: '100%' }}
           >
             <TileLayer

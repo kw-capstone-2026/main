@@ -16,13 +16,12 @@ function Industry() {
     const fetchIndustryData = async () => {
       setLoading(true)
 
-      // B01 등 문자열 ID 차단 -> 숫자 ID 사용
       let currentId = blockId
-      if (!currentId || currentId === 'undefined' || currentId === 'null' || isNaN(Number(currentId))) {
-        currentId = '5'
+      if (!currentId || currentId === 'undefined' || currentId === 'null') {
+        currentId = localStorage.getItem('selectedBlockId') || '828'
       }
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+      const baseUrl = 'http://localhost:8080'
 
       try {
         const [blockRes, indRes] = await Promise.all([
@@ -31,31 +30,30 @@ function Industry() {
         ])
 
         let blockInfo = {}
-        let indInfo = []
+        let indInfo = {}
 
         if (blockRes && blockRes.ok) blockInfo = await blockRes.json()
         if (indRes && indRes.ok) indInfo = await indRes.json()
 
-        const blockName = blockInfo?.name || '상수동 카페거리'
+        // 선택된 ID별 상권 이름 매핑
+        let defaultName = '경리단길 북측'
+        const strId = String(currentId)
+        if (strId === '13982') {
+          defaultName = '연남동(홍대)'
+        } else if (strId === '12396') {
+          defaultName = '성수역'
+        }
+
+        const blockName = blockInfo?.name || defaultName
         const mainIndustry = blockInfo?.mainIndustry || '커피-음료'
 
-        // 백엔드 응답 배열 형식 유연 처리 및 시연용 기본 데이터 연동
+        // 명세서 규격: indInfo.industries 배열 안의 { industryName, ratio, storeCount } 파싱
         const rawList = Array.isArray(indInfo) ? indInfo : (indInfo?.industries || [])
         
-        let formattedList = rawList.map(item => ({
+        const formattedList = rawList.map(item => ({
           name: item.industryName || item.name || item.industry || '기타 업종',
-          value: item.ratio ?? item.percentage ?? item.count ?? 10
+          value: item.ratio !== undefined ? Number(item.ratio) : (item.percentage ?? item.count ?? 0)
         }))
-
-        if (formattedList.length === 0) {
-          formattedList = [
-            { name: '커피-음료', value: 42.5 },
-            { name: '한식식당', value: 24.1 },
-            { name: '양식음식점', value: 15.3 },
-            { name: '제과제빵', value: 10.2 },
-            { name: '기타', value: 7.9 }
-          ]
-        }
 
         setData({
           blockId: currentId,
@@ -65,17 +63,6 @@ function Industry() {
         })
       } catch (err) {
         console.error('업종 데이터 연동 예외:', err)
-        setData({
-          blockId: currentId,
-          blockName: '상수동 카페거리',
-          mainIndustry: '커피-음료',
-          industries: [
-            { name: '커피-음료', value: 42.5 },
-            { name: '한식식당', value: 24.1 },
-            { name: '양식음식점', value: 15.3 },
-            { name: '기타', value: 18.1 }
-          ]
-        })
       } finally {
         setLoading(false)
       }
@@ -109,7 +96,9 @@ function Industry() {
 
         <div style={{ background: '#5E81F4', borderRadius: '12px', padding: '16px', marginBottom: '16px', color: 'white' }}>
           <div style={{ fontSize: '11px', opacity: 0.8, textAlign: 'left', marginBottom: '2px' }}>ID: {data.blockId}</div>
-          <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '2px', textAlign: 'left' }}>{data.blockName}</div>
+          <div style={{ fontSize: '17px', fontWeight: '700', marginBottom: '2px', textAlign: 'left' }}>
+            {data.blockName ? data.blockName.split('·')[0].trim() : ''}
+          </div>
           <div style={{ fontSize: '12px', opacity: 0.9, textAlign: 'left' }}>주요 업종: {data.mainIndustry}</div>
         </div>
 
@@ -118,12 +107,16 @@ function Industry() {
             상권 내 주요 업종 비율
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {data.industries.map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#475569', fontWeight: '600' }}>{item.name}</span>
-                <span style={{ fontWeight: '700', color: '#1E293B' }}>{item.value}%</span>
-              </div>
-            ))}
+            {data.industries && data.industries.length > 0 ? (
+              data.industries.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#475569', fontWeight: '600' }}>{item.name}</span>
+                  <span style={{ fontWeight: '700', color: '#1E293B' }}>{item.value}%</span>
+                </div>
+              ))
+            ) : (
+              <div style={{ fontSize: '12px', color: '#94A3B8', textAlign: 'center', padding: '10px' }}>데이터가 없습니다.</div>
+            )}
           </div>
         </div>
 
@@ -152,62 +145,65 @@ function Industry() {
             </div>
 
             <div style={{ width: '100%', height: '300px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-  <PieChart margin={{ top: 40, right: 20, bottom: 20, left: 20 }}>
-    <Pie
-      data={data.industries}
-      cx="50%"
-      cy="42%"
-      innerRadius={65}  // 안쪽 원 크기 확대
-      outerRadius={100} // 차트 원 크기를 105로 대폭 확대하여 보기 시원하게 변경
-      paddingAngle={4}
-      dataKey="value"
-      // 선 길이를 짧게(8px) 고정하여 차트에 깔끔히 붙게 설정
-      labelLine={({ cx, cy, midAngle, outerRadius }) => {
-        const RADIAN = Math.PI / 180
-        const sx = cx + outerRadius * Math.cos(-midAngle * RADIAN)
-        const sy = cy + outerRadius * Math.sin(-midAngle * RADIAN)
-        const ex = cx + (outerRadius + 8) * Math.cos(-midAngle * RADIAN)
-        const ey = cy + (outerRadius + 8) * Math.sin(-midAngle * RADIAN)
-        return <path d={`M${sx},${sy}L${ex},${ey}`} stroke="#94A3B8" strokeWidth={1} fill="none" />
-      }}
-      // 글자가 선 끝에서 살짝 떨어지도록 간격 조절
-      label={({ cx, cy, midAngle, outerRadius, fill, name, value }) => {
-        const RADIAN = Math.PI / 180
-        const radius = outerRadius + 16
-        const x = cx + radius * Math.cos(-midAngle * RADIAN)
-        const y = cy + radius * Math.sin(-midAngle * RADIAN)
-        const textAnchor = x > cx ? 'start' : 'end'
+              {data.industries && data.industries.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 40, right: 20, bottom: 20, left: 20 }}>
+                    <Pie
+                      data={data.industries}
+                      cx="50%"
+                      cy="42%"
+                      innerRadius={65}
+                      outerRadius={100}
+                      paddingAngle={4}
+                      dataKey="value"
+                      labelLine={({ cx, cy, midAngle, outerRadius }) => {
+                        const RADIAN = Math.PI / 180
+                        const sx = cx + outerRadius * Math.cos(-midAngle * RADIAN)
+                        const sy = cy + outerRadius * Math.sin(-midAngle * RADIAN)
+                        const ex = cx + (outerRadius + 8) * Math.cos(-midAngle * RADIAN)
+                        const ey = cy + (outerRadius + 8) * Math.sin(-midAngle * RADIAN)
+                        return <path d={`M${sx},${sy}L${ex},${ey}`} stroke="#94A3B8" strokeWidth={1} fill="none" />
+                      }}
+                      label={({ cx, cy, midAngle, outerRadius, fill, name, value }) => {
+                        const RADIAN = Math.PI / 180
+                        const radius = outerRadius + 16
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                        const textAnchor = x > cx ? 'start' : 'end'
 
-        return (
-          <text
-            x={x}
-            y={y}
-            fill={fill}
-            textAnchor={textAnchor}
-            dominantBaseline="central"
-            style={{ fontSize: '11px', fontWeight: '700' }}
-          >
-            {`${name} (${value}%)`}
-          </text>
-        )
-      }}
-    >
-      {data.industries.map((entry, index) => (
-        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-      ))}
-    </Pie>
-    <Tooltip formatter={(value) => [`${value}%`, '비율']} />
-    {/* 우측 하단 정렬 범례 */}
-    <Legend
-      align="right"
-      verticalAlign="bottom"
-      iconType="square"
-      iconSize={10}
-      wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-    />
-  </PieChart>
-</ResponsiveContainer>
+                        return (
+                          <text
+                            x={x}
+                            y={y}
+                            fill={fill}
+                            textAnchor={textAnchor}
+                            dominantBaseline="central"
+                            style={{ fontSize: '11px', fontWeight: '700' }}
+                          >
+                            {`${name} (${value}%)`}
+                          </text>
+                        )
+                      }}
+                    >
+                      {data.industries.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value}%`, '비율']} />
+                    <Legend
+                      align="right"
+                      verticalAlign="bottom"
+                      iconType="square"
+                      iconSize={10}
+                      wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: '#94A3B8' }}>
+                  해당 상권의 업종 통계 데이터가 존재하지 않습니다.
+                </div>
+              )}
             </div>
           </div>
 
