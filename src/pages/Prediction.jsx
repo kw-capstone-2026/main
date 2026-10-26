@@ -149,7 +149,10 @@ function Prediction() {
         if (blockRes && blockRes.ok) blockInfo = await blockRes.json()
         if (predRes && predRes.ok) predInfo = await predRes.json()
         if (shapRes && shapRes.ok) shapInfo = await shapRes.json()
+        if (shapRes && shapRes.ok) shapInfo = await shapRes.json()
 
+// 👇 이 코드를 추가해서 백엔드가 실제로 어떤 데이터 형태를 주는지 눈으로 확인해 보세요!
+console.log('백엔드에서 받아온 SHAP 원본 데이터:', shapInfo);
         // 백엔드가 준 실제 ID(828, 13982, 12396) 기준 이름 및 시연 데이터 매핑
         let defaultName = '경리단길북측'
         let defaultScore = 80
