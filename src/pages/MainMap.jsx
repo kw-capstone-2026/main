@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapContainer, TileLayer, Rectangle, Tooltip, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Rectangle, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import Sidebar from '../components/Sidebar'
 
@@ -10,12 +10,23 @@ const getRiskColor = (riskGrade, riskScore) => {
   return '#22C55E'
 }
 
-function ZoomListener({ setZoomLevel }) {
+function MapController({ selectedBlock, isManualSelect, zoomLevel, setZoomLevel }) {
+  const map = useMap()
+
   useMapEvents({
     zoomend: (e) => {
       setZoomLevel(e.target.getZoom())
     }
   })
+
+  useEffect(() => {
+    if (isManualSelect && selectedBlock?.lat && selectedBlock?.lng) {
+      map.flyTo([selectedBlock.lat, selectedBlock.lng], 14, {
+        duration: 1.2
+      })
+    }
+  }, [selectedBlock, isManualSelect, map])
+
   return null
 }
 
@@ -58,6 +69,7 @@ const DEMO_BLOCKS = [
 function MainMap() {
   const [blocks] = useState(DEMO_BLOCKS)
   const [zoomLevel, setZoomLevel] = useState(12)
+  const [isManualSelect, setIsManualSelect] = useState(false)
 
   const [selectedBlock, setSelectedBlock] = useState(() => {
     const savedId = localStorage.getItem('selectedBlockId')
@@ -76,7 +88,7 @@ function MainMap() {
 
   const getFontSize = (baseSize) => {
     const scale = Math.pow(1.25, zoomLevel - 12)
-    return `${Math.max(9, Math.min(26, baseSize * scale))}px`
+    return `${Math.max(10, Math.min(26, baseSize * scale))}px`
   }
 
   const filteredBlocks = blocks.filter(block => {
@@ -90,7 +102,7 @@ function MainMap() {
     if (filteredBlocks.length > 0) {
       const isCurrentlySelectedValid = filteredBlocks.some(b => b.id === selectedBlock?.id)
       if (!isCurrentlySelectedValid) {
-        handleSelectBlock(filteredBlocks[0])
+        handleSelectBlock(filteredBlocks[0], false)
       }
     } else {
       setSelectedBlock(null)
@@ -98,7 +110,7 @@ function MainMap() {
   }, [selectedRegionFilter, selectedRiskFilter])
 
   const getBlockBounds = (lat, lng) => {
-    const delta = 0.018 
+    const delta = 0.0085
     return [
       [lat - delta, lng - delta],
       [lat + delta, lng + delta]
@@ -111,7 +123,8 @@ function MainMap() {
     return score !== undefined && score !== null ? `${score}점` : '-점'
   }
 
-  const handleSelectBlock = (block) => {
+  const handleSelectBlock = (block, isManual = true) => {
+    setIsManualSelect(isManual)
     setSelectedBlock(block)
     if (block?.id) {
       localStorage.setItem('selectedBlockId', block.id)
@@ -156,7 +169,7 @@ function MainMap() {
               return (
                 <div
                   key={block.id || block.basId}
-                  onClick={() => handleSelectBlock(block)}
+                  onClick={() => handleSelectBlock(block, true)}
                   style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '10px 8px', borderBottom: '1px solid #F1F5F9',
@@ -292,7 +305,7 @@ function MainMap() {
 
         <div style={{ flex: 1, position: 'relative' }}>
           <MapContainer
-            center={[37.55, 126.99]} 
+            center={[37.553, 126.990]} 
             zoom={12}
             style={{ height: '100%', width: '100%' }}
           >
@@ -300,7 +313,7 @@ function MainMap() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; OpenStreetMap contributors'
             />
-            <ZoomListener setZoomLevel={setZoomLevel} />
+            <MapController selectedBlock={selectedBlock} isManualSelect={isManualSelect} zoomLevel={zoomLevel} setZoomLevel={setZoomLevel} />
 
             {filteredBlocks.map((block) => {
               const lat = block.lat
@@ -315,19 +328,18 @@ function MainMap() {
                   key={block.id || block.basId}
                   bounds={bounds}
                   pathOptions={{
-                    color: isSelected ? '#1E293B' : color,
+                    stroke: false,
                     fillColor: color,
-                    fillOpacity: 0.75,
-                    weight: isSelected ? 3 : 1
+                    fillOpacity: isSelected ? 0.75 : 0.55
                   }}
                   eventHandlers={{
-                    click: () => handleSelectBlock(block)
+                    click: () => handleSelectBlock(block, true)
                   }}
                 >
                   <Tooltip permanent direction="center" className="block-label">
-                    <div style={{ textAlign: 'center', fontWeight: '700', color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
-                      <div style={{ fontSize: getFontSize(11) }}>{block.name}</div>
-                      <div style={{ fontSize: getFontSize(10) }}>{block.riskScore}점</div>
+                    <div style={{ textAlign: 'center', fontWeight: '800', color: 'white', textShadow: '1px 1px 3px rgba(0,0,0,0.9)' }}>
+                      <div style={{ fontSize: getFontSize(11.5) }}>{block.name}</div>
+                      <div style={{ fontSize: getFontSize(10.5) }}>{block.riskScore}점</div>
                     </div>
                   </Tooltip>
                 </Rectangle>
