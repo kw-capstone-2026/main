@@ -29,15 +29,66 @@ function Sidebar() {
       width: '64px', background: '#4F46E5', display: 'flex', flexDirection: 'column',
       alignItems: 'center', padding: '16px 0', gap: '20px', zIndex: 100
     }}>
-      {/* 로고 */}
-      <div style={{
-        width: '36px', height: '36px', background: 'white', color: '#4F46E5',
-        borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center',
-        fontWeight: '800', fontSize: '18px'
-      }}>
-        C
-      </div>
-
+      {/* 3번 요구사항: 3줄 정중앙 정렬 완성 코드 */}
+<div 
+  title="상권 과포화 위험 진단 · 팀 이음"
+  onClick={() => navigate('/map')}
+  style={{
+    width: '52px',
+    height: '52px',
+    background: 'white',
+    borderRadius: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+    padding: '0',
+    boxSizing: 'border-box'
+  }}
+>
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '2px' /* 수직 시각적 밸런스 미세 조정 */
+  }}>
+    <span style={{ 
+      fontSize: '10px', 
+      fontWeight: '800', 
+      color: '#6366F1', 
+      lineHeight: '1.2',
+      letterSpacing: '-0.5px',
+      margin: '0',
+      padding: '0'
+    }}>
+      상권 과포화
+    </span>
+    <span style={{ 
+      fontSize: '10px', 
+      fontWeight: '800', 
+      color: '#6366F1', 
+      lineHeight: '1.2',
+      letterSpacing: '-0.5px',
+      margin: '0 0 3px 0',
+      padding: '0'
+    }}>
+      위험 진단
+    </span>
+    <span style={{ 
+      fontSize: '8px', 
+      fontWeight: '900', 
+      color: '#1E1B4B', 
+      lineHeight: '1',
+      margin: '0',
+      padding: '0'
+    }}>
+      팀 이음
+    </span>
+  </div>
+</div>
       {/* 1. 지도 이동 버튼 */}
       <button
         onClick={() => navigate('/map')}

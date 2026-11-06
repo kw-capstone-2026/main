@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ResponsiveContainer, BarChart, Bar, Cell, LabelList, XAxis, YAxis, Tooltip } from 'recharts'
 import Sidebar from '../components/Sidebar'
 
-// 1. 명세서 32개 전체 변수별 표시 형식 및 단위 정의
 const FORMAT = {
   '당월_매출_금액': ['won', ''],
   '당월_매출_건수': ['count', '건'],
@@ -40,7 +39,6 @@ const FORMAT = {
   '집객시설_밀도': ['density', '개'],
 }
 
-// 2. 0일 때 "자료 없음" 관련 특수 예외 규칙
 const ZERO_MISSING = {
   '소득_구간_코드': '자료 없음',
   '상권_업종_적합도': '해당 소비 항목 없음',
@@ -50,7 +48,6 @@ const ZERO_MISSING = {
   '아파트세대당_매출': '아파트 없음',
 }
 
-// 3. 한글 label만 올 경우 DB name으로 자동 변환해주는 역매핑 테이블
 const LABEL_TO_NAME = {
   '작년 같은 분기 대비 폐업 증감': '전년_동기_대비_폐업_증감률',
   '점포당 평균 매출': '점포당_평균_매출',
@@ -63,7 +60,6 @@ const LABEL_TO_NAME = {
   '평균 점포 수 대비 매출': '점포당_매출_밀도',
 }
 
-// 4. 명세서 9가지 포맷팅 구현 함수
 function formatFeatureValue(name, label, v) {
   if (v === null || v === undefined || v === '' || Number.isNaN(Number(v))) {
     return '-'
@@ -72,7 +68,6 @@ function formatFeatureValue(name, label, v) {
   const num = Number(v)
   const featureKey = name || LABEL_TO_NAME[label] || label
 
-  // 0일 때 예외 문구 처리
   if (num === 0 && ZERO_MISSING[featureKey]) {
     return ZERO_MISSING[featureKey]
   }
@@ -94,18 +89,15 @@ function formatFeatureValue(name, label, v) {
       return `${num.toFixed(1)}개`
 
     case 'pct':
-      // 이미 %인 값 (100 곱하지 않음)
       return `${num.toFixed(1)}%`
 
     case 'share':
-      // 0~1 비율 (x 100 후 %)
       return `${(num * 100).toFixed(1)}%`
 
     case 'per100':
       return `${num.toFixed(2)}개`
 
     case 'density':
-      // 집객시설 밀도 (x 100 후 "점포 100개당 N개")
       return `점포 100개당 ${(num * 100).toFixed(1)}개`
 
     case 'months':
@@ -115,14 +107,12 @@ function formatFeatureValue(name, label, v) {
       return `${Math.trunc(num)}구간`
 
     case 'yoy': {
-      // 작년 대비 폐업 증감: 소수 2자리, 끝자리 0은 한 자리까지 (음수 − 표시)
       let t = Math.abs(num).toFixed(2)
       if (t.endsWith('0')) t = t.slice(0, -1)
       return (num < 0 ? '−' : '') + t
     }
 
     default:
-      // 키워드 fallback 매핑
       if (label?.includes('폐업률')) return `${num.toFixed(1)}%`
       if (label?.includes('집객시설') || label?.includes('밀집도')) {
         return `점포 100개당 ${(num < 1 ? num * 100 : num).toFixed(1)}개`
@@ -213,7 +203,6 @@ function Prediction() {
           const val = !isNaN(Number(rawVal)) ? Number(Number(rawVal).toFixed(3)) : 0
           const valStr = val > 0 ? `+${val}` : `${val}`
 
-          // featureValue 추출 (?? 연산으로 0도 유실 없이 파싱)
           const rawActualVal = item?.featureValue ?? item?.feature_value ?? item?.actualValue ?? item?.actual_value ?? item?.value_raw ?? 0
           const formattedActual = formatFeatureValue(rawName, displayName, rawActualVal)
           

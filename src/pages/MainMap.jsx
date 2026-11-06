@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapContainer, TileLayer, Rectangle, Tooltip, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Rectangle, Tooltip, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import Sidebar from '../components/Sidebar'
 
@@ -10,7 +10,15 @@ const getRiskColor = (riskGrade, riskScore) => {
   return '#22C55E'
 }
 
-// 백엔드 팀원이 공유해 준 실제 시연용 3대 상권 ID 및 데이터
+function ZoomListener({ setZoomLevel }) {
+  useMapEvents({
+    zoomend: (e) => {
+      setZoomLevel(e.target.getZoom())
+    }
+  })
+  return null
+}
+
 const DEMO_BLOCKS = [
   {
     id: 828,
@@ -47,45 +55,37 @@ const DEMO_BLOCKS = [
   }
 ]
 
-function MoveToLocation({ query, onMove }) {
-  const map = useMap()
-  useEffect(() => {
-    if (!query) return
-    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' 서울')}&format=json&limit=1`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          const lat = parseFloat(data[0].lat)
-          const lon = parseFloat(data[0].lon)
-          map.setView([lat, lon], 14)
-          onMove(lat, lon)
-        }
-      })
-      .catch(() => {})
-  }, [query])
-  return null
-}
-
 function MainMap() {
   const [blocks] = useState(DEMO_BLOCKS)
-  const [selectedBlock, setSelectedBlock] = useState(DEMO_BLOCKS[0])
-  const [selectedIndustry, setSelectedIndustry] = useState('커피-음료')
+  const [zoomLevel, setZoomLevel] = useState(12)
+
+  const [selectedBlock, setSelectedBlock] = useState(() => {
+    const savedId = localStorage.getItem('selectedBlockId')
+    if (savedId) {
+      const found = DEMO_BLOCKS.find(b => String(b.id) === String(savedId))
+      if (found) return found
+    }
+    return DEMO_BLOCKS[0]
+  })
+
+  const [selectedIndustry] = useState('커피-음료')
   const [selectedRegionFilter, setSelectedRegionFilter] = useState('전체')
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('전체')
-  const [searchInput, setSearchInput] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
 
   const navigate = useNavigate()
+
+  const getFontSize = (baseSize) => {
+    const scale = Math.pow(1.25, zoomLevel - 12)
+    return `${Math.max(9, Math.min(26, baseSize * scale))}px`
+  }
 
   const filteredBlocks = blocks.filter(block => {
     const matchRegion = selectedRegionFilter === '전체' || block.region === selectedRegionFilter
     const matchRisk = selectedRiskFilter === '전체' || block.riskGrade === selectedRiskFilter
     const matchIndustry = !selectedIndustry || (block.mainIndustry ? block.mainIndustry.includes(selectedIndustry) : true)
-    const matchSearch = !searchQuery || block.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchRegion && matchRisk && matchIndustry && matchSearch
+    return matchRegion && matchRisk && matchIndustry
   })
 
-  // 🔥 피드백 4번: 검색어 및 필터가 바뀔 때, 선택된 블록(좌측 하단 정보)을 검색 결과의 첫 번째 상권으로 자동 업데이트
   useEffect(() => {
     if (filteredBlocks.length > 0) {
       const isCurrentlySelectedValid = filteredBlocks.some(b => b.id === selectedBlock?.id)
@@ -95,11 +95,10 @@ function MainMap() {
     } else {
       setSelectedBlock(null)
     }
-  }, [searchQuery, selectedRegionFilter, selectedRiskFilter])
+  }, [selectedRegionFilter, selectedRiskFilter])
 
-  // 🔥 피드백 1번: 지도 위 마커(사각형) 크기를 2배로 키움 (0.0015 -> 0.003)
   const getBlockBounds = (lat, lng) => {
-    const delta = 0.01 
+    const delta = 0.018 
     return [
       [lat - delta, lng - delta],
       [lat + delta, lng + delta]
@@ -250,22 +249,8 @@ function MainMap() {
           borderBottom: '1px solid #E2E8F0',
           display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap'
         }}>
-          <input
-            type="text"
-            placeholder="상권 검색 (예: 경리단길북측, 연남동)"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && setSearchQuery(searchInput)}
-            style={{
-              flex: 1, minWidth: '200px', maxWidth: '260px', padding: '8px 12px',
-              border: '1px solid #CBD5E1', borderRadius: '8px',
-              fontSize: '13px', outline: 'none'
-            }}
-          />
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>업종:</span>
-            {/* 🔥 피드백 5번: 커피-음료 하나만 남기고 disabled 속성 추가하여 클릭 불가능하게 고정 */}
             <select
               value={selectedIndustry}
               disabled
@@ -306,7 +291,6 @@ function MainMap() {
         </div>
 
         <div style={{ flex: 1, position: 'relative' }}>
-          {/* 🔥 피드백 1번: 3대 상권이 모두 한눈에 크게 들어오도록 초기 중앙 좌표 조정 및 zoom=12 적용 */}
           <MapContainer
             center={[37.55, 126.99]} 
             zoom={12}
@@ -316,10 +300,8 @@ function MainMap() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; OpenStreetMap contributors'
             />
-            <MoveToLocation
-              query={searchQuery}
-              onMove={() => {}}
-            />
+            <ZoomListener setZoomLevel={setZoomLevel} />
+
             {filteredBlocks.map((block) => {
               const lat = block.lat
               const lng = block.lng
@@ -343,9 +325,9 @@ function MainMap() {
                   }}
                 >
                   <Tooltip permanent direction="center" className="block-label">
-                    <div style={{ textAlign: 'center', fontWeight: '700', fontSize: '11px', color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
-                      <div>{block.name}</div>
-                      <div>({block.riskGrade})</div>
+                    <div style={{ textAlign: 'center', fontWeight: '700', color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
+                      <div style={{ fontSize: getFontSize(11) }}>{block.name}</div>
+                      <div style={{ fontSize: getFontSize(10) }}>{block.riskScore}점</div>
                     </div>
                   </Tooltip>
                 </Rectangle>
