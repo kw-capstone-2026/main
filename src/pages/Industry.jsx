@@ -91,10 +91,13 @@ function Industry() {
       <Sidebar />
 
       <div style={{
-        width: '320px', background: 'white',
+        width: '320px',
+        background: 'white',
         borderRight: '1px solid #E2E8F0',
-        display: 'flex', flexDirection: 'column',
-        padding: '20px', overflowY: 'auto'
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '20px',
+        overflowY: 'auto'
       }}>
         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '14px', color: '#1E293B', textAlign: 'left' }}>
           업종 비교 분석
@@ -139,50 +142,79 @@ function Industry() {
           <span style={{ fontSize: '15px', fontWeight: '600', color: '#1E293B' }}>대시보드 / 상권 업종 분석</span>
         </div>
 
-        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-          <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #E2E8F0' }}>
-            <div style={{ fontSize: '16px', fontWeight: '700', color: '#1E293B', marginBottom: '4px', textAlign: 'left' }}>
+        <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '28px 32px',
+            border: '1px solid #E2E8F0',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{ fontSize: '18px', fontWeight: '700', color: '#1E293B', marginBottom: '6px', textAlign: 'left' }}>
               상권 업종 구성 및 비율
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '16px', textAlign: 'left' }}>
+            <div style={{ fontSize: '13px', color: '#64748B', marginBottom: '24px', textAlign: 'left' }}>
               선택한 상권 내 분포된 상위 업종 비율 현황입니다.
             </div>
 
-            <div style={{ width: '100%', height: '300px' }}>
+            <div style={{ width: '100%', flex: 1, minHeight: '440px' }}>
               {data.industries && data.industries.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart margin={{ top: 40, right: 20, bottom: 20, left: 20 }}>
+                  <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                     <Pie
-                      data={data.industries}
+                      data={data.industries.map((item, idx) => ({
+                        ...item,
+                        color: COLORS[idx % COLORS.length]
+                      }))}
                       cx="50%"
-                      cy="42%"
-                      innerRadius={65}
-                      outerRadius={100}
+                      cy="46%"
+                      innerRadius={80}
+                      outerRadius={130}
                       paddingAngle={4}
                       dataKey="value"
-                      labelLine={({ cx, cy, midAngle, outerRadius }) => {
+                      labelLine={({ cx, cy, midAngle, outerRadius, ...entry }) => {
                         const RADIAN = Math.PI / 180
                         const sx = cx + outerRadius * Math.cos(-midAngle * RADIAN)
                         const sy = cy + outerRadius * Math.sin(-midAngle * RADIAN)
-                        const ex = cx + (outerRadius + 8) * Math.cos(-midAngle * RADIAN)
-                        const ey = cy + (outerRadius + 8) * Math.sin(-midAngle * RADIAN)
-                        return <path d={`M${sx},${sy}L${ex},${ey}`} stroke="#94A3B8" strokeWidth={1} fill="none" />
+                        const ex = cx + (outerRadius + 17) * Math.cos(-midAngle * RADIAN)
+                        const ey = cy + (outerRadius + 17) * Math.sin(-midAngle * RADIAN)
+                        const lineColor = entry.color || entry.payload?.color || '#94A3B8'
+
+                        return (
+                          <path
+                            d={`M${sx},${sy}L${ex},${ey}`}
+                            stroke={lineColor}
+                            strokeWidth={1.5}
+                            fill="none"
+                          />
+                        )
                       }}
-                      label={({ cx, cy, midAngle, outerRadius, fill, name, value }) => {
+                      label={({ cx, cy, midAngle, outerRadius, name, value, ...entry }) => {
                         const RADIAN = Math.PI / 180
-                        const radius = outerRadius + 16
+                        const radius = outerRadius + 28
                         const x = cx + radius * Math.cos(-midAngle * RADIAN)
                         const y = cy + radius * Math.sin(-midAngle * RADIAN)
-                        const textAnchor = x > cx ? 'start' : 'end'
+
+                        const dx = Math.abs(x - cx)
+                        let textAnchor = 'start'
+                        if (dx < 35) {
+                          textAnchor = 'middle'
+                        } else if (x < cx) {
+                          textAnchor = 'end'
+                        }
+
+                        const textColor = entry.color || entry.payload?.color || '#1E293B'
 
                         return (
                           <text
                             x={x}
                             y={y}
-                            fill={fill}
+                            fill={textColor}
                             textAnchor={textAnchor}
                             dominantBaseline="central"
-                            style={{ fontSize: '11px', fontWeight: '700' }}
+                            style={{ fontSize: '14px', fontWeight: '700' }}
                           >
                             {`${name} (${value}%)`}
                           </text>
@@ -195,11 +227,11 @@ function Industry() {
                     </Pie>
                     <Tooltip formatter={(value) => [`${value}%`, '비율']} />
                     <Legend
-                      align="right"
+                      align="center"
                       verticalAlign="bottom"
                       iconType="square"
-                      iconSize={10}
-                      wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                      iconSize={12}
+                      wrapperStyle={{ fontSize: '13px', paddingTop: '20px' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -208,16 +240,6 @@ function Industry() {
                   해당 상권의 업종 통계 데이터가 존재하지 않습니다.
                 </div>
               )}
-            </div>
-          </div>
-
-          <div style={{ border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '30px', background: '#F8FAFC', textAlign: 'center' }}>
-            <div style={{ fontSize: '24px', marginBottom: '8px' }}>📊</div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-              상권 업종 상세 추이 및 평균 생존기간
-            </div>
-            <div style={{ fontSize: '12px', color: '#94A3B8' }}>
-              해당 분석 데이터는 현재 데이터 고도화 준비 중입니다.
             </div>
           </div>
         </div>

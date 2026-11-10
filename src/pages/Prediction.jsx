@@ -8,7 +8,7 @@ const FORMAT = {
   '당월_매출_건수': ['count', '건'],
   '점포_수_y': ['avg', '개'],
   '유사_업종_점포_수_y': ['avg', '개'],
-  '개업_율_y': ['pct', '%'],
+  '개업_률_y': ['pct', '%'],
   '폐업_률_y': ['pct', '%'],
   '프랜차이즈_점포_수_y': ['avg', '개'],
   '프랜차이즈점포비율(%)': ['pct', '%'],
@@ -58,6 +58,72 @@ const LABEL_TO_NAME = {
   '상권 운영 점포 평균 영업기간': '운영_영업_개월_평균',
   '업종·상권 적합도': '상권_업종_적합도',
   '평균 점포 수 대비 매출': '점포당_매출_밀도',
+}
+
+const GRADE_DESCRIPTIONS = {
+  '위험': '위험 등급은 실제 과포화 비율이 평균의 약 10배인 구간입니다. 최근 개폐업 흐름과 매출 추이를 먼저 확인해 보시길 권합니다.',
+  '주의': '주의 등급은 실제 과포화 비율이 평균의 약 2배인 구간입니다. 다음 분기 흐름을 함께 지켜볼 필요가 있습니다.',
+  '안전': '안전 등급은 실제 과포화 비율이 평균보다 낮은 구간입니다. 다만 이번 분기 기준 진단이라 흐름은 바뀔 수 있습니다.',
+}
+
+function getFeaturePhrase(featureKey, shapVal, rawValue, displayName) {
+  const numVal = Number(rawValue) || 0
+  const labelText = displayName || featureKey || '해당 지표'
+
+  if (shapVal > 0) {
+    switch (featureKey) {
+      case '전년_동기_대비_폐업_증감률': return '작년 같은 분기보다 폐업이 늘어난 것'
+      case '점포당_평균_매출': return '점포당 평균 매출이 낮은 것'
+      case '폐업_률_y': return '상권 평균 폐업률이 높은 것'
+      case '당월_매출_금액': return '이번 분기 매출 규모가 큰 것'
+      case '당월_매출_건수': return '이번 분기 결제 건수가 적은 것'
+      case '운영_영업_개월_평균': return '상권 점포들의 평균 영업기간이 짧은 것'
+      case '집객시설_밀도': return '주변 집객시설이 적은 것'
+      default: return `${labelText} 수준`
+    }
+  } else {
+    switch (featureKey) {
+      case '전년_동기_대비_폐업_증감률':
+        if (numVal < 0) return '작년 같은 분기보다 폐업이 줄어든 것'
+        if (numVal === 0) return '작년 같은 분기보다 폐업이 늘지 않은 것'
+        return '작년 같은 분기보다 폐업 증가 폭이 작은 것'
+      case '점포당_평균_매출': return '점포당 평균 매출이 높은 것'
+      case '폐업_률_y': return '상권 평균 폐업률이 낮은 것'
+      case '당월_매출_금액': return '이번 분기 매출 규모가 작은 것'
+      case '당월_매출_건수': return '이번 분기 결제 건수가 많은 것'
+      case '운영_영업_개월_평균': return '상권 점포들의 평균 영업기간이 긴 것'
+      case '집객시설_밀도': return '주변 집객시설이 많은 것'
+      default: return `${labelText} 수준`
+    }
+  }
+}
+
+function generateShapSummary(shapData, riskGrade) {
+  if (!Array.isArray(shapData) || shapData.length < 2) {
+    return { line1: '', line2: '' }
+  }
+
+  const sorted = [...shapData].sort((a, b) => Math.abs(b?.value || 0) - Math.abs(a?.value || 0))
+  const top1 = sorted[0]
+  const top2 = sorted[1]
+
+  if (!top1 || !top2) return { line1: '', line2: '' }
+
+  const key1 = top1.rawName || LABEL_TO_NAME[top1.name] || top1.name || ''
+  const key2 = top2.rawName || LABEL_TO_NAME[top2.name] || top2.name || ''
+
+  const phrase1 = getFeaturePhrase(key1, top1.value || 0, top1.rawActualVal, top1.name)
+  const dir1 = (top1.value || 0) > 0 ? '높였' : '낮췄'
+
+  const phrase2 = getFeaturePhrase(key2, top2.value || 0, top2.rawActualVal, top2.name)
+  const isSameDir = ((top1.value || 0) > 0 && (top2.value || 0) > 0) || ((top1.value || 0) < 0 && (top2.value || 0) < 0)
+  const josa2 = isSameDir ? '도' : '은'
+  const dir2 = (top2.value || 0) > 0 ? '높였습니다' : '낮췄습니다'
+
+  const line1 = `${phrase1}이 위험을 가장 크게 ${dir1}고, ${phrase2}${josa2} 위험을 ${dir2}.`
+  const line2 = GRADE_DESCRIPTIONS[riskGrade] || GRADE_DESCRIPTIONS['안전']
+
+  return { line1, line2 }
 }
 
 function formatFeatureValue(name, label, v) {
@@ -211,7 +277,9 @@ function Prediction() {
           return {
             rank: item?.rank || (idx + 1),
             name: displayName,
+            rawName: rawName,
             value: val,
+            rawActualVal: rawActualVal,
             absVal: Math.abs(val) > 0.01 ? Math.abs(val) : 0.05,
             actualValue: formattedActual,
             displayLabel: displayLabel,
@@ -257,15 +325,20 @@ function Prediction() {
     )
   }
 
+  const summaryTexts = generateShapSummary(data.shapData, data.riskGrade)
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#F5F5FA' }}>
       <Sidebar />
 
       <div style={{
-        width: '320px', background: 'white',
+        width: '320px',
+        background: 'white',
         borderRight: '1px solid #E2E8F0',
-        display: 'flex', flexDirection: 'column',
-        padding: '20px', overflowY: 'auto'
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '20px',
+        overflowY: 'auto'
       }}>
         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '14px', color: '#1E293B', textAlign: 'left' }}>
           상권 과포화 위험 진단
@@ -371,6 +444,24 @@ function Prediction() {
             ) : (
               <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>
                 SHAP 분석 데이터가 준비 중입니다.
+              </div>
+            )}
+
+            {summaryTexts.line1 && (
+              <div style={{
+                marginTop: '16px',
+                padding: '14px 16px',
+                backgroundColor: '#F8FAFC',
+                borderRadius: '8px',
+                border: '1px solid #E2E8F0',
+                textAlign: 'left'
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B', marginBottom: '4px', lineHeight: '1.5' }}>
+                  {summaryTexts.line1}
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5' }}>
+                  {summaryTexts.line2}
+                </div>
               </div>
             )}
 
